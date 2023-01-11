@@ -2,17 +2,17 @@ import os
 # Directory of training script
 cur_dir = os.path.dirname(__file__)
 import sys
-sys.path.append(os.path.join(cur_dir,'starnet_ss'))
-from data_loader import WeaveSpectraDataset2, WeaveSpectraDatasetInference2, batch_to_device
-from training_utils import parseArguments, run_iter, compare_feat_maps, str2bool, compare_val_sample
-from network_new2 import StarNet, build_starnet, load_model_state
+sys.path.append(os.path.join(cur_dir,'utils'))
+from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch_to_device
+from training_utils import (parseArguments, WarmupLinearSchedule, run_iter, 
+                            str2bool, compare_val_sample)
+from network import StarNet, build_starnet, load_model_state
 
 import configparser
 import time
 import numpy as np
 import h5py
 import torch
-from torch.optim.lr_scheduler import LambdaLR
 from collections import defaultdict
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -34,7 +34,6 @@ data_dir = args.data_dir
 # Directories
 config_dir = os.path.join(cur_dir, 'configs/')
 model_dir = os.path.join(cur_dir, 'models/')
-progress_dir = os.path.join(cur_dir, 'progress/')
 if data_dir is None:
     data_dir = os.path.join(cur_dir, 'data/')
 
@@ -53,8 +52,9 @@ add_noise_to_source = str2bool(config['DATA']['add_noise_to_source'])
 random_chunk = str2bool(config['DATA']['random_chunk'])
 overlap = float(config['DATA']['overlap'])
 batch_size = int(config['TRAINING']['batchsize'])
-learning_rate = float(config['TRAINING']['learning_rate'])
-lr_sched = config['TRAINING']['lr_sched']
+lr_warmup = int(config['TRAINING']['lr_warmup'])
+min_lr = float(config['TRAINING']['min_lr'])
+min_lr_iters = int(config['TRAINING']['min_lr_iters'])
 total_batch_iters = float(config['TRAINING']['total_batch_iters'])
 target_task_weights = torch.tensor(eval(config['TRAINING']['target_task_weights'])).to(device)
 source_task_weights = torch.tensor(eval(config['TRAINING']['source_task_weights'])).to(device)
@@ -64,37 +64,14 @@ model = build_starnet(config, device, model_name)
 
 # Construct optimizer
 optimizer = torch.optim.Adam(model.all_parameters(), 
-                             learning_rate, weight_decay=0., 
+                             0., weight_decay=0., 
                              betas=(0.9, 0.999))
 
 # Learning rate scheduler
-class WarmupLinearSchedule(LambdaLR):
-    """ Linear warmup and then linear decay.
-        Linearly increases learning rate from 0 to 1 over `warmup_steps` training steps.
-        Linearly decreases learning rate from 1. to 0. over remaining `t_total - warmup_steps` steps.
-    """
-    def __init__(self, optimizer, warmup_steps, t_total, last_epoch=-1):
-        self.warmup_steps = warmup_steps
-        self.t_total = t_total
-        super(WarmupLinearSchedule, self).__init__(optimizer, self.lr_lambda, last_epoch=last_epoch)
-
-    def lr_lambda(self, step):
-        if step < self.warmup_steps:
-            return float(step) / float(max(1, self.warmup_steps))
-        return max(0.0, float(self.t_total - step) / float(max(1.0, self.t_total - self.warmup_steps)))
-
-    
-if lr_sched=='step':
-    lr_decay_batch_iters = float(config['TRAINING']['lr_decay_batch_iters'])
-    lr_decay = float(config['TRAINING']['lr_decay'])
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
-                                               step_size=lr_decay_batch_iters,
-                                               gamma=lr_decay)
-elif lr_sched=='warmup':
-    lr_warmup = int(config['TRAINING']['lr_warmup'])
-    lr_scheduler = WarmupLinearSchedule(optimizer, 
-                                        warmup_steps=lr_warmup, 
-                                        t_total=total_batch_iters)
+lr_scheduler = WarmupLinearSchedule(optimizer, 
+                                    warmup_steps=lr_warmup,
+                                    min_lr=min_lr,
+                                    t_total=min_lr_iters)
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
@@ -106,14 +83,13 @@ if num_gpus>1:
     batch_size *= num_gpus
 
 # Create data loaders
-source_train_dataset = WeaveSpectraDataset2(source_data_file, 
+source_train_dataset = WeaveSpectraDataset(source_data_file, 
                                            dataset='train', 
                                            wave_grid_file=wave_grid_file, 
                                            label_keys=label_keys,
                                            normalize_spectra=normalize_spectra,
                                            split_channels=split_channels,
                                            num_fluxes=model.module.num_fluxes, 
-                                           load_stellar_labels=True, 
                                            tasks=model.module.tasks, 
                                            task_means=model.module.task_means.cpu().numpy(), 
                                            task_stds=model.module.task_stds.cpu().numpy(),
@@ -129,19 +105,19 @@ source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
                                                       num_workers=3,
                                                       pin_memory=True)
 
-source_val_dataset = WeaveSpectraDatasetInference2(source_data_file, 
-                                         dataset='val', 
-                                         wave_grid_file=wave_grid_file, 
-                                         label_keys=label_keys,
-                                         normalize_spectra=normalize_spectra,
-                                         split_channels=split_channels, 
-                                         num_fluxes=model.module.num_fluxes, 
-                                         tasks=model.module.tasks, 
-                                         task_means=model.module.task_means.cpu().numpy(), 
-                                         task_stds=model.module.task_stds.cpu().numpy(),
-                                         median_thresh=0., std_min=0.01, 
-                                         random_chunk=random_chunk,
-                                           overlap=overlap)
+source_val_dataset = WeaveSpectraDatasetInference(source_data_file, 
+                                                  dataset='val', 
+                                                  wave_grid_file=wave_grid_file, 
+                                                  label_keys=label_keys,
+                                                  normalize_spectra=normalize_spectra,
+                                                  split_channels=split_channels, 
+                                                  num_fluxes=model.module.num_fluxes, 
+                                                  tasks=model.module.tasks, 
+                                                  task_means=model.module.task_means.cpu().numpy(), 
+                                                  task_stds=model.module.task_stds.cpu().numpy(),
+                                                  median_thresh=0., std_min=0.01, 
+                                                  random_chunk=random_chunk,
+                                                  overlap=overlap)
 
 source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset, 
                                                     batch_size=1, 
@@ -149,14 +125,13 @@ source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset,
                                                     num_workers=3,
                                                     pin_memory=True)
 
-target_train_dataset = WeaveSpectraDataset2(target_data_file, 
+target_train_dataset = WeaveSpectraDataset(target_data_file, 
                                            dataset='train', 
                                            wave_grid_file=wave_grid_file, 
                                            label_keys=label_keys,
                                            normalize_spectra=normalize_spectra, 
                                            split_channels=split_channels,
                                            num_fluxes=model.module.num_fluxes,
-                                           load_stellar_labels=False, 
                                            tasks=model.module.tasks, 
                                            task_means=model.module.task_means.cpu().numpy(), 
                                            task_stds=model.module.task_stds.cpu().numpy(),
@@ -168,21 +143,21 @@ target_train_dataset = WeaveSpectraDataset2(target_data_file,
 target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
                                                       batch_size=batch_size, 
                                                       shuffle=True, 
-                                                      num_workers=0,
+                                                      num_workers=3,
                                                       pin_memory=True)
 
-target_val_dataset = WeaveSpectraDatasetInference2(target_data_file, 
-                                         dataset='val', 
-                                         wave_grid_file=wave_grid_file, 
-                                         label_keys=label_keys,
-                                         normalize_spectra=normalize_spectra, 
-                                         split_channels=split_channels,
-                                         num_fluxes=model.module.num_fluxes,
-                                         tasks=model.module.tasks, 
-                                         task_means=model.module.task_means.cpu().numpy(), 
-                                         task_stds=model.module.task_stds.cpu().numpy(),
-                                         median_thresh=0., std_min=0.01, 
-                                         random_chunk=random_chunk,
+target_val_dataset = WeaveSpectraDatasetInference(target_data_file, 
+                                                  dataset='val', 
+                                                  wave_grid_file=wave_grid_file, 
+                                                  label_keys=label_keys,
+                                                  normalize_spectra=normalize_spectra, 
+                                                  split_channels=split_channels,
+                                                  num_fluxes=model.module.num_fluxes,
+                                                  tasks=model.module.tasks, 
+                                                  task_means=model.module.task_means.cpu().numpy(), 
+                                                  task_stds=model.module.task_stds.cpu().numpy(),
+                                                  median_thresh=0., std_min=0.01, 
+                                                  random_chunk=random_chunk,
                                                    overlap=overlap)
 
 target_val_dataloader = torch.utils.data.DataLoader(target_val_dataset, 
@@ -245,20 +220,6 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                                                        source_val_batch, 
                                                        target_val_batch, 
                                                        losses_cp)
-                        '''model, optimizer, lr_scheduler, losses_cp = run_iter(model,
-                                                                             source_val_batch, 
-                                                                             target_val_batch,
-                                                                             optimizer,
-                                                                             lr_scheduler,
-                                                                             target_task_weights,
-                                                                             source_task_weights,
-                                                                             losses_cp, 
-                                                                             mode='val')
-                        # Compare the feature map representations of the two domains
-                        losses_cp = compare_feat_maps(model,
-                                                      source_val_batch, 
-                                                      target_val_batch,
-                                                      losses_cp)'''
 
                 # Calculate averages
                 for k in losses_cp.keys():
@@ -282,13 +243,6 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                 print('\t\tSource Label Loss: %0.3f' % (losses['val_src_labels'][-1]))
                 print('\t\tTarget Label Loss: %0.3f' % (losses['val_tgt_labels'][-1]))
                 print('\t\tFeature Map Score: %0.3f' % (losses['val_feats'][-1]))
-                '''if len(model.tasks)>0:
-                    for i, task in enumerate(model.tasks):
-                        print('\t\tSource %s Task Loss: %0.3f' % (task.capitalize(),
-                                                                  losses['val_src_tasks'][-1][i]))
-                        print('\t\tTarget %s Task Loss: %0.3f' % (task.capitalize(),
-                                                                  losses['val_tgt_tasks'][-1][i]))
-                '''
 
                 # Reset checkpoint loss dictionary
                 losses_cp = defaultdict(list)
