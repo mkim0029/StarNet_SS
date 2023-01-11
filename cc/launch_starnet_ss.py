@@ -140,15 +140,15 @@ def parseArguments():
 
 # Directories
 cur_dir = os.path.dirname(os.path.realpath(__file__))
-data_dir = os.path.join(cur_dir, 'data')
-model_dir = os.path.join(cur_dir, 'models/')
-training_script = os.path.join(cur_dir, 'train_starnet_ss.py')
+data_dir = os.path.join(cur_dir, '../data')
+model_dir = os.path.join(cur_dir, '../models/')
+training_script = os.path.join(cur_dir, '../train_starnet_ss.py')
 
 # Read command line arguments
 args = parseArguments()
 
 # Configuration filename
-config_fn = os.path.join(cur_dir, 'configs', args.model_name+'.ini')
+config_fn = os.path.join(cur_dir, '../configs', args.model_name+'.ini')
 if os.path.isfile(config_fn):
     good_to_go = False
     while not good_to_go: 
@@ -224,13 +224,13 @@ elif user_input=='r':
     target_data_file = os.path.join(data_dir, config['DATA']['target_data_file'])
     wave_grid_file = os.path.join(data_dir, config['DATA']['wave_grid_file'])
 
-todo_dir = os.path.join(cur_dir, 'scripts/todo')
-done_dir = os.path.join(cur_dir, 'scripts/done')
-stdout_dir = os.path.join(cur_dir, 'scripts/stdout')
+todo_dir = os.path.join(cur_dir, '../scripts/todo')
+done_dir = os.path.join(cur_dir, '../scripts/done')
+stdout_dir = os.path.join(cur_dir, '../scripts/stdout')
     
 # Create script directories
 if not os.path.exists('scripts'):
-    os.mkdir(os.path.join(cur_dir,'scripts'))
+    os.mkdir(os.path.join(cur_dir,'../scripts'))
 if not os.path.exists('scripts/todo'):
     os.mkdir(todo_dir)
 if not os.path.exists('scripts/done'):
@@ -243,8 +243,9 @@ script_fn = os.path.join(todo_dir, args.model_name+'.sh')
 with open(script_fn, 'w') as f:
     f.write('#!/bin/bash\n\n')
     f.write('# Module loads\n')
-    for line in open('module_loads.txt', 'r').readlines():
-        f.write(line+'\n')
+    for line in open(os.path.join(cur_dir,'module_loads.txt'), 'r').readlines():
+        f.write(line)
+    f.write('\n\n')
     f.write('# Copy files to slurm directory\n')
     f.write('cp %s $SLURM_TMPDIR\n' % (os.path.join(data_dir, source_data_file)))
     f.write('cp %s $SLURM_TMPDIR\n' % (os.path.join(data_dir, target_data_file)))
@@ -256,7 +257,7 @@ with open(script_fn, 'w') as f:
                                                                    args.cp_time))
 
 # Compute-canada goodies command
-cmd = 'python %s ' % (os.path.join(cur_dir, 'compute-canada-goodies/python/queue_cc.py'))
+cmd = 'python %s ' % (os.path.join(cur_dir, 'queue_cc.py'))
 cmd += '--account "%s" --todo_dir "%s" ' % (args.account, todo_dir)
 cmd += '--done_dir "%s" --output_dir "%s" ' % (done_dir, stdout_dir)
 cmd += '--num_jobs 1 --num_runs %i --num_gpu 1 ' % (args.num_runs)
