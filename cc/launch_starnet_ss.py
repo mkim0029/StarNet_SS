@@ -229,13 +229,13 @@ done_dir = os.path.join(cur_dir, '../scripts/done')
 stdout_dir = os.path.join(cur_dir, '../scripts/stdout')
     
 # Create script directories
-if not os.path.exists('scripts'):
+if not os.path.exists(os.path.join(cur_dir,'../scripts')):
     os.mkdir(os.path.join(cur_dir,'../scripts'))
-if not os.path.exists('scripts/todo'):
+if not os.path.exists(todo_dir):
     os.mkdir(todo_dir)
-if not os.path.exists('scripts/done'):
+if not os.path.exists(done_dir):
     os.mkdir(done_dir)
-if not os.path.exists('scripts/stdout'):
+if not os.path.exists(stdout_dir):
     os.mkdir(stdout_dir)
     
 # Create script file
