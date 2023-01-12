@@ -10,9 +10,9 @@ Predicting chemical abundances and parameters from stellar spectra using self-su
 
 - Python 3.9.6
 
--[PyTorch](http://pytorch.org/): `pip install torch==1.13.1`
+- [PyTorch](http://pytorch.org/): `pip install torch==1.13.1`
 
--h5py: `pip install h5py`
+- h5py: `pip install h5py`
 
 ## Data download
 
