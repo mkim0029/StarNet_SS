@@ -31,7 +31,13 @@ Alternatively, if operating on compute-canada, you can use the `cc/launch_starne
 1. Change the [load modules file](./cc/module_loads.txt) to include the lines necessary to load your own environment with pytorch, etc. 
 2. Then, to copy the [original configuration](./configs/starnet_ss_1.ini), but use, say, a batch size of 16 spectra, you could use the command `python cc/launch_starnet_ss.py starnet_ss_2 -bs 16`. This will launch two 3-hour jobs on the GPU nodes to finish the training. You can checkout the other parameters that can be changed with the command `python cc/launch_starnet_ss.py -h`.
 
-Also, to launch a bunch of models and test a grid search of different configuration parameters, checkout the [gridsearch file](./cc/launch_starnet_ss_gridsearch.py) for some ideas.
+### Model Grid Search
+
+To launch a bunch of models and test a grid search of different configuration parameters, checkout the [gridsearch file](./cc/launch_starnet_ss_gridsearch.py) for some ideas.
+
+### Ensemble Training
+
+To train an ensemble of models with the same configuration parameters, checkout the [ensemble training file](./cc/launch_starnet_ss_ensemble.py) for some ideas.
 
 ## Analysis notebooks
 
