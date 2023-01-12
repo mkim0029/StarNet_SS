@@ -143,48 +143,18 @@ def predict_labels(model, dataset, batchsize=16):
             tgt_stellar_labels.append(batch['stellar labels'].data.numpy())
 
             # Perform forward propagation
-            if model.network_type.lower()=='cnn':
-                model_outputs = model(batch['spectrum chunks'].squeeze(0), 
-                                      batch['wave grid chunks'].squeeze(0),
-                                      batch['pixel_indx'].squeeze(0),
-                                      norm_in=True, denorm_out=True)
-                
-            elif model.network_type.lower()=='transformer':
-                model_outputs_ = []
-                for i in range(0, batch['spectrum chunks'].size(0), batchsize):
-                    model_outputs_.append(model(batch['spectrum chunks'][i:i+batchsize], 
-                                          batch['wave grid chunks'][i:i+batchsize],
-                                          batch['pixel_indx'][i:i+batchsize],
-                                          norm_in=True, denorm_out=True))
-                model_outputs = {}
-                for k in model_outputs_[0].keys():
-                    model_outputs[k] = torch.cat([model_outputs_[i][k] for i in range(len(model_outputs_))])
+            model_outputs = model(batch['spectrum chunks'].squeeze(0), 
+                                  batch['pixel_indx'].squeeze(0),
+                                  norm_in=True, denorm_out=True)
 
             if len(model.tasks)>0:
                 pred_task_labels.append(model_outputs['task_labels'].data.numpy())
 
-            if model.est_unc:
-                # Weight the average using the variance
-                # using error propagation to get the final uncertainties
-                stellar_labels_pred_and_unc = unumpy.uarray(model_outputs['labels'].data.numpy(), 
-                                                            model_outputs['labels_unc'].data.numpy())
-                stellar_labels_sigma = model_outputs['labels_unc'].data.numpy()
-
-                stellar_labels_pred_and_unc = np.sum(1/stellar_labels_sigma**2 * stellar_labels_pred_and_unc, 
-                                                             axis=0) / np.sum(1/stellar_labels_sigma**2, 
-                                                             axis=0)
-
-                stellar_labels_pred = [stellar_labels_pred_and_unc[i].n for i in range(len(stellar_labels_pred_and_unc))]
-                stellar_labels_sigma = [stellar_labels_pred_and_unc[i].s for i in range(len(stellar_labels_pred_and_unc))]
-
-            else:
-                # Take average from all spectrum chunk predictions
-                pred_stellar_labels.append(torch.mean(model_outputs['labels'], axis=0).data.numpy())
+            # Take average from all spectrum chunk predictions
+            pred_stellar_labels.append(torch.mean(model_outputs['stellar labels'], axis=0).data.numpy())
 
         tgt_stellar_labels = np.vstack(tgt_stellar_labels)
         pred_stellar_labels = np.vstack(pred_stellar_labels)
-        if model.est_unc:
-            sigma_stellar_labels = np.vstack(sigma_stellar_labels)
         #if len(model.tasks)>0:
             #tgt_task_labels = np.hstack(tgt_task_labels).T
             #pred_task_labels = np.hstack(pred_task_labels).T 
@@ -214,23 +184,11 @@ def predict_ensemble(models, dataset, batchsize=16):
             for model in models:
 
                 # Perform forward propagation
-                if model.network_type.lower()=='cnn':
-                    model_outputs = model(batch['spectrum chunks'].squeeze(0), 
-                                          batch['wave grid chunks'].squeeze(0),
-                                          batch['pixel_indx'].squeeze(0),
-                                          norm_in=True, denorm_out=True)
-                elif model.network_type.lower()=='transformer':
-                    model_outputs_ = []
-                    for i in range(0, batch['spectrum chunks'].size(0), batchsize):
-                        model_outputs_.append(model(batch['spectrum chunks'][i:i+batchsize], 
-                                              batch['wave grid chunks'][i:i+batchsize],
-                                              batch['pixel_indx'][i:i+batchsize],
-                                              norm_in=True, denorm_out=True))
-                    model_outputs = {}
-                    for k in model_outputs_[0].keys():
-                        model_outputs[k] = torch.cat([model_outputs_[i][k] for i in range(len(model_outputs_))])
+                model_outputs = model(batch['spectrum chunks'].squeeze(0), 
+                                      batch['pixel_indx'].squeeze(0),
+                                      norm_in=True, denorm_out=True)
 
-                pred_labels.append(model_outputs['labels'].data.numpy())
+                pred_labels.append(model_outputs['stellar labels'].data.numpy())
 
             # Calculate mean and std across ensemble of predictions
             stellar_labels_pred = np.array(pred_labels)
@@ -242,16 +200,14 @@ def predict_ensemble(models, dataset, batchsize=16):
             stellar_labels_pred_and_unc = unumpy.uarray(stellar_labels_pred, 
                                                         stellar_labels_sigma)
 
-            stellar_labels_pred_and_unc = np.sum(1/stellar_labels_sigma**2 * stellar_labels_pred_and_unc, 
-                                                         axis=0) / np.sum(1/stellar_labels_sigma**2, 
-                                                         axis=0)
+            stellar_labels_pred_and_unc = np.sum(1/stellar_labels_sigma**2 * stellar_labels_pred_and_unc,
+                                                 axis=0) / np.sum(1/stellar_labels_sigma**2, axis=0)
 
             stellar_labels_pred = [stellar_labels_pred_and_unc[i].n for i in range(len(stellar_labels_pred_and_unc))]
             stellar_labels_sigma = [stellar_labels_pred_and_unc[i].s for i in range(len(stellar_labels_pred_and_unc))]
             
             pred_stellar_labels.append(stellar_labels_pred)
             sigma_stellar_labels.append(stellar_labels_sigma)
-
 
         tgt_stellar_labels = np.vstack(tgt_stellar_labels)
         pred_stellar_labels = np.vstack(pred_stellar_labels)
