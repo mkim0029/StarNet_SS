@@ -27,9 +27,9 @@ for k in params:
 for i, e in zip(range(num_ensemble), ascii_lowercase):
     model_name = 'starnet_ss_%i_%s' % (model_num, e)
     
-    launch_cmd = ('python launch_starnet_ss.py %s %s -co "%s"' % (model_name, 
-                                                                  param_cmd, 
-                                                                  param_cmd))
+    launch_cmd = ('python launch_starnet_ss.py %s %s -co "Ensemble with %s"' % (model_name, 
+                                                                                 param_cmd, 
+                                                                                 param_cmd))
     print(launch_cmd)
         
     # Execute jobs
