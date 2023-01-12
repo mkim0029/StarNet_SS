@@ -64,7 +64,7 @@ model = build_starnet(config, device, model_name)
 
 # Construct optimizer
 optimizer = torch.optim.Adam(model.all_parameters(), 
-                             0., weight_decay=0., 
+                             weight_decay=0., 
                              betas=(0.9, 0.999))
 
 # Learning rate scheduler
@@ -184,7 +184,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
         # Iterate through both training datasets simultaneously
         source_dataloader_iterator = iter(source_train_dataloader)
         for target_train_batch in target_train_dataloader:
-            
+
             try:
                 source_train_batch = next(source_dataloader_iterator)
             except StopIteration:
