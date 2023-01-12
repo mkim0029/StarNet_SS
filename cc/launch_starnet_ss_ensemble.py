@@ -9,9 +9,9 @@ num_ensemble = 5
 
 # Parameters to change from default configuration
 params = {'mlr':0.0005}
-param_cmd = ''
 
 # Turn parameters into command
+param_cmd = ''
 for k in params:
     if (hasattr(params[k], '__len__')) and (not isinstance(params[k], str)):
         if len(params[k])==0:
