@@ -122,7 +122,6 @@ class StarNet(torch.nn.Module):
     def __init__(self, architecture_config, label_keys, device):
         super().__init__()
         
-        
         # ARCHITECTURE PARAMETERS
         self.num_fluxes = int(architecture_config['num_fluxes'])
         spectrum_size = int(architecture_config['spectrum_size'])
@@ -357,7 +356,8 @@ def build_starnet(config, device, model_name):
         
     return model
 
-def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
+def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None,
+                     swa_model=None):
     
     # Check for pre-trained weights
     if os.path.exists(model_filename):
@@ -375,6 +375,8 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
             optimizer.load_state_dict(checkpoint['optimizer'])
         if lr_scheduler is not None:
             lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
+        if swa_model is not None:
+            swa_model.load_state_dict(checkpoint['swa_model'], strict=False)
 
         # Load model weights
         model.load_state_dict(checkpoint['model'])
@@ -383,4 +385,7 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
         losses = defaultdict(list)
         cur_iter = 1
         
-    return model, losses, cur_iter
+    if swa_model is not None:
+        return model, swa_model, losses, cur_iter
+    else:
+        return model, losses, cur_iter

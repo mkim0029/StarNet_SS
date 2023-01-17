@@ -4,7 +4,7 @@ cur_dir = os.path.dirname(__file__)
 import sys
 sys.path.append(os.path.join(cur_dir,'utils'))
 from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch_to_device
-from training_utils import (parseArguments, WarmupLinearSchedule, run_iter, 
+from training_utils import (parseArguments, WarmupCosineSchedule, run_iter, 
                             str2bool, compare_val_sample)
 from network import StarNet, build_starnet, load_model_state
 
@@ -14,6 +14,8 @@ import numpy as np
 import h5py
 import torch
 from collections import defaultdict
+
+from torch.optim.swa_utils import AveragedModel, SWALR
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 num_gpus = torch.cuda.device_count()
@@ -52,30 +54,35 @@ add_noise_to_source = str2bool(config['DATA']['add_noise_to_source'])
 random_chunk = str2bool(config['DATA']['random_chunk'])
 overlap = float(config['DATA']['overlap'])
 batch_size = int(config['TRAINING']['batchsize'])
-lr_warmup = int(config['TRAINING']['lr_warmup'])
-min_lr = float(config['TRAINING']['min_lr'])
-min_lr_iters = int(config['TRAINING']['min_lr_iters'])
+lr = float(config['TRAINING']['lr'])
+weight_decay = float(config['TRAINING']['weight_decay'])
 total_batch_iters = float(config['TRAINING']['total_batch_iters'])
 target_task_weights = torch.tensor(eval(config['TRAINING']['target_task_weights'])).to(device)
 source_task_weights = torch.tensor(eval(config['TRAINING']['source_task_weights'])).to(device)
 
 # Build network
 model = build_starnet(config, device, model_name)
+# SWA averaging of model
+swa_model = AveragedModel(model)
 
 # Construct optimizer
-optimizer = torch.optim.Adam(model.all_parameters(), 
-                             weight_decay=0., 
+optimizer = torch.optim.AdamW(model.all_parameters(), 
+                             lr,
+                             weight_decay=weight_decay, 
                              betas=(0.9, 0.999))
 
 # Learning rate scheduler
-lr_scheduler = WarmupLinearSchedule(optimizer, 
-                                    warmup_steps=lr_warmup,
-                                    min_lr=min_lr,
-                                    t_total=min_lr_iters)
+lr_scheduler = WarmupCosineSchedule(optimizer, 
+                                    warmup_steps=int(0.001*total_batch_iters),
+                                    t_total=total_batch_iters)
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, losses, cur_iter = load_model_state(model, model_filename, optimizer, lr_scheduler)
+model, swa_model, losses, cur_iter = load_model_state(model, 
+                                                      model_filename, 
+                                                      optimizer, 
+                                                      lr_scheduler,
+                                                      swa_model)
 
 # Multi GPUs
 model = torch.nn.parallel.DataParallel(model, device_ids=list(range(num_gpus)), dim=0)
@@ -258,7 +265,8 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                             'losses': losses,
                             'optimizer' : optimizer.state_dict(),
                             'lr_scheduler' : lr_scheduler.state_dict(),
-                            'model' : model.module.state_dict()},
+                            'model' : model.module.state_dict(),
+                            'swa_model' : swa_model.module.state_dict()},
                             model_filename)
 
                 cp_start_time = time.time()
@@ -270,10 +278,14 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                             'losses': losses,
                             'optimizer' : optimizer.state_dict(),
                             'lr_scheduler' : lr_scheduler.state_dict(),
-                            'model' : model.module.state_dict()},
-                           model_filename)
+                            'model' : model.module.state_dict(),
+                            'swa_model' : swa_model.module.state_dict()},
+                            model_filename)
                 # Finish training
-                break                
+                break 
+                
+        if cur_iter>int(0.9*total_batch_iters):
+            swa_model.update_parameters(model)
 
 # Run the training
 if __name__=="__main__":

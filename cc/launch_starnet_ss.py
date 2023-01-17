@@ -22,7 +22,7 @@ def parseArguments():
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=2)
+                        type=int, default=3)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
@@ -65,18 +65,15 @@ def parseArguments():
     parser.add_argument("-bs", "--batchsize", 
                         help="Training batchsize.", 
                         type=int, default=8)
-    parser.add_argument("-lrw", "--lr_warmup", 
-                        help="Batch iterations before the learning starts decaying.", 
-                        type=int, default=5000)
-    parser.add_argument("-mlr", "--min_lr", 
-                        help="Minimum learning rate to decay to.", 
-                        type=float, default=0.01)
-    parser.add_argument("-mlri", "--min_lr_iters", 
-                        help="Batch iterations to reach min_lr.", 
-                        type=int, default=600000)
+    parser.add_argument("-lr", "--lr", 
+                        help="Initial learning rate.", 
+                        type=float, default=0.001)
+    parser.add_argument("-wd", "--weight_decay", 
+                        help="Weight decay for AdamW optimizer.", 
+                        type=float, default=0.1)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
-                        type=int, default=2000000)
+                        type=int, default=600000)
     parser.add_argument("-ttw", "--target_task_weights", 
                         help="Loss weights for each task in the target domain.", 
                         default=[0.1, 0.05, 0.05, 0.1])
@@ -180,9 +177,8 @@ elif user_input=='o':
                       'overlap': args.overlap}
 
     config['TRAINING'] = {'batchsize': args.batchsize,
-                          'lr_warmup': args.lr_warmup,
-                          'min_lr': args.min_lr,
-                          'min_lr_iters': args.min_lr_iters,
+                          'lr': args.lr,
+                          'weight_decay': args.weight_decay,
                           'total_batch_iters': args.total_batch_iters,
                           'source_task_weights': args.source_task_weights,
                           'target_task_weights': args.target_task_weights}
