@@ -2,11 +2,11 @@ import os
 import itertools
 
 # Starting number for jobs
-start_model_num = 5
+start_model_num = 27
 
 # Different parameters to try out
-grid_params = {'mlr':[0.1,0.01,0.001],
-               'mlri':[600000,800000,1000000]}
+grid_params = {'wd':[1, 0.5, 0.1, 0.05],
+               'ti':[300000,600000,900000]}
 
 # Create a list of all possible parameter combinations
 keys, values = zip(*grid_params.items())
