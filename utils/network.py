@@ -123,6 +123,7 @@ class StarNet(torch.nn.Module):
         super().__init__()
         
         # ARCHITECTURE PARAMETERS
+        self.label_keys = label_keys
         self.num_fluxes = int(architecture_config['num_fluxes'])
         spectrum_size = int(architecture_config['spectrum_size'])
         self.d_model = int(architecture_config['encoder_dim'])
@@ -135,7 +136,7 @@ class StarNet(torch.nn.Module):
         self.label_stds = torch.tensor(eval(architecture_config['label_stds'])).to(device)
         self.spectra_mean = float(architecture_config['spectra_mean'])
         self.spectra_std = float(architecture_config['spectra_std'])
-        self.num_labels = len(label_keys)
+        self.num_labels = len(self.label_keys)
         self.tasks = eval(architecture_config['tasks'])
         if (len(self.tasks)==1 and self.tasks[0]=='[]'):
             self.tasks = []

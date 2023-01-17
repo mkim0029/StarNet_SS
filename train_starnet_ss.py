@@ -250,6 +250,11 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                 print('\t\tSource Label Loss: %0.3f' % (losses['val_src_labels'][-1]))
                 print('\t\tTarget Label Loss: %0.3f' % (losses['val_tgt_labels'][-1]))
                 print('\t\tFeature Map Score: %0.3f' % (losses['val_feats'][-1]))
+                for i, key in enumerate(model.module.label_keys):
+                        print('\t\tSource %s MAE: %0.3f' % (key.capitalize(),
+                                                            losses['val_src_'+key][-1]))
+                        print('\t\tTarget %s MAE: %0.3f' % (key.capitalize(),
+                                                            losses['val_tgt_'+key][-1]))
 
                 # Reset checkpoint loss dictionary
                 losses_cp = defaultdict(list)

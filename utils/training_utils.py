@@ -178,6 +178,13 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     tgt_label_loss = torch.nn.MSELoss()(label_preds_tgt, 
                                         model.module.normalize_labels(tgt_batch['stellar labels'][0]))
     
+    
+    # Compute abs error on each label prediction separately
+    src_label_mae = torch.abs(label_preds_src - 
+                                         model.module.normalize_labels(src_batch['stellar labels'][0])) 
+    tgt_label_mae = torch.abs(label_preds_tgt - 
+                                         model.module.normalize_labels(tgt_batch['stellar labels'][0])) 
+    
     # Compute max and min of each feature
     max_feat = torch.max(torch.cat((model_feats_src, model_feats_tgt), 0), 
                          dim=0).values
@@ -200,5 +207,9 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     losses_cp['val_src_labels'].append(float(src_label_loss))
     losses_cp['val_tgt_labels'].append(float(tgt_label_loss))
     losses_cp['val_feats'].append(float(feat_loss))
+    
+    for src_val, tgt_val, label_key in zip(src_label_mae, tgt_label_mae, model.module.label_keys):
+        losses_cp['val_src_'+label_key].append(float(src_val))
+        losses_cp['val_tgt_'+label_key].append(float(tgt_val))
     
     return losses_cp
