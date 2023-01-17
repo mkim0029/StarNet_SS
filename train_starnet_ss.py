@@ -264,6 +264,9 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
             cur_iter += 1
 
             if time.time() - cp_start_time >= cp_time*60:
+                if cur_iter>int(0.9*total_batch_iters):
+                    swa_model.update_parameters(model)
+                
                 # Save periodically
                 print('Saving network...')
                 torch.save({'batch_iters': cur_iter,
@@ -277,6 +280,10 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                 cp_start_time = time.time()
 
             if cur_iter>(total_batch_iters):
+                
+                if cur_iter>int(0.9*total_batch_iters):
+                    swa_model.update_parameters(model)
+                
                 # Save after training
                 print('Saving network...')
                 torch.save({'batch_iters': cur_iter,
@@ -288,9 +295,6 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                             model_filename)
                 # Finish training
                 break 
-                
-        if cur_iter>int(0.9*total_batch_iters):
-            swa_model.update_parameters(model)
 
 # Run the training
 if __name__=="__main__":
