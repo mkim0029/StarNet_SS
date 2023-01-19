@@ -2,13 +2,13 @@ import os
 from string import ascii_lowercase
 
 # Number for model name
-model_num = 2
+model_num = 43
 
 # Number of models to train with identical parameters
 num_ensemble = 5
 
 # Parameters to change from default configuration
-params = {'mlr':0.0005}
+params = {'n':3}
 
 # Turn parameters into command
 param_cmd = ''
