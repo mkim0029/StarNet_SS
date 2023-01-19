@@ -69,7 +69,7 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
     """
 
     def __init__(self, data_file, dataset, wave_grid_file, label_keys, 
-                 normalize_spectra, split_channels, num_fluxes,
+                 continuum_normalize, divide_by_median, split_channels, num_fluxes,
                  tasks, task_means, task_stds, median_thresh=0., std_min=0.01,
                  apply_dropout=False, add_noise=False, max_noise_factor=0.2, 
                  random_chunk=False, overlap=0.5):
@@ -77,7 +77,8 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
         self.data_file = data_file
         self.dataset = dataset.lower()
         self.label_keys = label_keys
-        self.normalize_spectra = normalize_spectra
+        self.continuum_normalize = continuum_normalize
+        self.divide_by_median = divide_by_median
         self.median_thresh = median_thresh
         self.num_fluxes = num_fluxes
         self.split_channels = split_channels
@@ -124,7 +125,11 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
             stellar_labels = np.asarray([f[k + ' %s' % self.dataset][idx] for k in self.label_keys])
             stellar_labels = torch.from_numpy(stellar_labels.astype(np.float32))
             
-            if self.normalize_spectra:
+            if self.continuum_normalize:
+                # Divide spectrum by its estimated continuum
+                spectrum = spectrum/f['continua %s' % self.dataset][idx]
+            
+            if self.divide_by_median:
                 # Divide spectrum by its median to centre it around 1
                 spectrum = spectrum/np.median(spectrum[spectrum>self.median_thresh])
             
@@ -212,14 +217,15 @@ class WeaveSpectraDatasetInference(torch.utils.data.Dataset):
     """
 
     def __init__(self, data_file, dataset, wave_grid_file, label_keys, 
-                 normalize_spectra, split_channels, num_fluxes,
+                 continuum_normalize, divide_by_median, split_channels, num_fluxes,
                  tasks, task_means, task_stds, median_thresh=0., std_min=0.01, 
                  random_chunk=False, overlap=0.5):
         
         self.data_file = data_file
         self.dataset = dataset.lower()
         self.label_keys = label_keys
-        self.normalize_spectra = normalize_spectra
+        self.continuum_normalize = continuum_normalize
+        self.divide_by_median = divide_by_median
         self.split_channels = split_channels
         self.median_thresh = median_thresh
         self.num_fluxes = num_fluxes
@@ -263,7 +269,11 @@ class WeaveSpectraDatasetInference(torch.utils.data.Dataset):
             stellar_labels = np.asarray([f[k + ' %s' % self.dataset][idx] for k in self.label_keys])
             stellar_labels = torch.from_numpy(stellar_labels.astype(np.float32))
             
-            if self.normalize_spectra:
+            if self.continuum_normalize:
+                # Divide spectrum by its estimated continuum
+                spectrum = spectrum/f['continua %s' % self.dataset][idx]
+            
+            if self.divide_by_median:
                 # Divide spectrum by its median to centre it around 1
                 spectrum = spectrum/np.median(spectrum[spectrum>self.median_thresh])
             

@@ -36,17 +36,20 @@ def parseArguments():
     # Config params
     parser.add_argument("-sfn", "--source_data_file", 
                         help="Source data file for training.", 
-                        type=str, default='ambre_ss_suppnet_normed.h5') 
+                        type=str, default='ambre.h5') 
     parser.add_argument("-tfn", "--target_data_file", 
                         help="Target data file for training.", 
-                        type=str, default='golden_sample_ss_suppnet_normed.h5') 
+                        type=str, default='golden_sample.h5') 
     parser.add_argument("-wfn", "--wave_grid_file", 
                         help="Wave grid file.", 
                         type=str, default='weave_hr_wavegrid_arms.npy')
     parser.add_argument("-lk", "--label_keys",  type=str, nargs='+',
                         help="Dataset keys for labels in data file.", 
                         default="['teff', 'feh', 'logg', 'alpha', 'vrad']") 
-    parser.add_argument("-ns", "--normalize_spectra", 
+    parser.add_argument("-cn", "--continuum_normalize", 
+                        help="Whether or not to continuum normalize each spectrum.", 
+                        type=str, default='True')
+    parser.add_argument("-dbm", "--divide_by_median", 
                         help="Whether or not to divide each spectrum by its median value.", 
                         type=str, default='False')
     parser.add_argument("-sc", "--split_channels", 
@@ -73,7 +76,7 @@ def parseArguments():
                         type=float, default=0.1)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
-                        type=int, default=600000)
+                        type=int, default=800000)
     parser.add_argument("-ttw", "--target_task_weights", 
                         help="Loss weights for each task in the target domain.", 
                         default=[0.1, 0.05, 0.05, 0.1])
@@ -92,7 +95,7 @@ def parseArguments():
                         type=int, default=18)
     parser.add_argument("-cf", "--conv_filts", 
                         help="Number of filters in conv layers (for cnn).", 
-                        default=[64,64,32,32,16])
+                        default=[128, 128, 128, 128, 32])
     parser.add_argument("-fl", "--filter_lengths", 
                         help="Length of filters in conv layers (for cnn).", 
                         default=[15,15,7,7,7])
@@ -101,16 +104,16 @@ def parseArguments():
                         default=[4,2,2,2,2])
     parser.add_argument("-nh", "--num_hidden", 
                         help="Number of nodes in fully-connected layers (for cnn).", 
-                        default=[64, 32])
+                        default=[])
     parser.add_argument("-pl", "--pool_length", 
                         help="Length of pooling filter (for cnn).", 
                         default=0)
     parser.add_argument("-lm", "--label_means", 
                         help="Mean value of each label used for normalization.", 
-                        default=[5800, -1, 3.0, 0.2, 0])
+                        default=[5770, -1.06, 2.99, 0.217, 0])
     parser.add_argument("-ls", "--label_stds", 
                         help="Standard deviation of each label used for normalization.", 
-                        default=[1200, 1.6, 1.4, 0.3, 50])
+                        default=[1200, 1.65, 1.39, 0.337, 50])
     parser.add_argument("-sm", "--spectra_mean", 
                         help="Number of flux values in spectrum.", 
                         type=float, default=0.9)
@@ -170,7 +173,8 @@ elif user_input=='o':
                       'target_data_file': args.target_data_file, 
                       'wave_grid_file': args.wave_grid_file, 
                       'label_keys': args.label_keys,
-                      'normalize_spectra': args.normalize_spectra,
+                      'continuum_normalize': args.continuum_normalize,
+                      'divide_by_median': args.divide_by_median,
                       'split_channels': args.split_channels,
                       'add_noise_to_source': args.add_noise_to_source,
                       'random_chunk': args.random_chunk,

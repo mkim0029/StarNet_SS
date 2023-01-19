@@ -120,6 +120,60 @@ def plot_progress(losses, tasks, y_lims=[(0,1)], x_lim=None,
         
     plt.show()
     
+def plot_label_MAE(losses, label_keys, y_lims=[(0,1)], x_lim=None, 
+                  fontsize=18, savename=None):
+    
+    fontsize_small=0.8*fontsize
+
+    num_ax = len(label_keys)
+        
+    fig = plt.figure(figsize=(9,3*(num_ax)))
+    
+    gs = gridspec.GridSpec(num_ax, 1)
+    
+    linestyles = ['-', '--', '-.', ':']
+
+    for i, key in enumerate(label_keys):
+        
+        # Make label pretty
+        label_key = key
+        if key=='teff':
+            label_key = 'T$_{\mathrm{eff}}$ [K]'
+        if key=='feh':
+            label_key = '[Fe/H]'
+        if key=='logg':
+            label_key = '$\log{g}$'
+        if key=='alpha':
+            label_key = r'[$\alpha$/H]'
+        if key=='vrad':
+            label_key = r'$v_{\mathrm{rad}}$ [km/s]'
+        
+        ax = plt.subplot(gs[i])
+    
+        ax.set_title('(a) %s' % (label_key), fontsize=fontsize)
+        ax.plot(losses['batch_iters'], losses['val_src_%s' % key],
+                 label=r'Source', c='k')
+        ax.plot(losses['batch_iters'], losses['val_tgt_%s' % key],
+                 label=r'Target', c='r')
+        ax.set_ylabel('MAE',fontsize=fontsize)
+        ax.set_ylim(*y_lims[0])
+        ax.legend(fontsize=fontsize_small)
+        
+        if x_lim is not None:
+            ax.set_xlim(x_lim[0], x_lim[1])
+        else:
+            ax.set_xlim(losses['batch_iters'][0], losses['batch_iters'][-1])
+        ax.set_xlabel('Batch Iterations',fontsize=fontsize)
+        ax.tick_params(labelsize=fontsize_small)
+        ax.grid(True)
+
+    plt.tight_layout()
+    
+    if savename is not None:
+        plt.savefig(savename, transparent=True, dpi=600, bbox_inches='tight', pad_inches=0.05)
+        
+    plt.show()
+    
     
 def predict_labels(model, dataset, batchsize=16):
     
@@ -162,14 +216,22 @@ def predict_labels(model, dataset, batchsize=16):
     return (tgt_stellar_labels, pred_stellar_labels, 
             sigma_stellar_labels, tgt_task_labels, pred_task_labels)
 
-
-def predict_ensemble(models, dataset, batchsize=16):
+def predict_ensemble(models, dataset, channel_starts = [0, 11880, 25880], batchsize=16):
+    
+    # Create a list of the starting indices of the chunks
+    channel_starts = [0, 11880, 25880]
+    starting_indices = []
+    for cs, i in zip(channel_starts, target_val_dataset.starting_indices):
+        starting_indices.append(cs+i)
+    starting_indices = np.concatenate(starting_indices)
     
     tgt_stellar_labels = []
     pred_stellar_labels = []
     sigma_stellar_labels = []
     tgt_task_labels = []
     pred_task_labels = []
+    
+    chunk_sigmas = []
     with torch.no_grad():
         # Loop through spectra in dataset
         for indx in range(len(dataset)):
@@ -194,6 +256,19 @@ def predict_ensemble(models, dataset, batchsize=16):
             stellar_labels_pred = np.array(pred_labels)
             stellar_labels_sigma = np.std(pred_labels,0)
             stellar_labels_pred = np.mean(pred_labels, 0)
+            
+            # Store the sigmas for each chunk
+            batch_pix_indices = batch['pixel_indx'].squeeze(0).squeeze(1).data.numpy()
+            num_labels = stellar_labels_pred.shape[1]
+            sigs = []
+            for pix_index in starting_indices:
+                
+                chunk_index = np.where(batch_pix_indices == pix_index)[0]
+                if len(chunk_index)==0:
+                    sigs.append(np.empty((num_labels,)) * np.nan)
+                else:
+                    sigs.append(stellar_labels_sigma[chunk_index][0])
+            chunk_sigmas.append(sigs)
 
             # Weight the average using the variance
             # using error propagation to get the final uncertainties
@@ -212,9 +287,12 @@ def predict_ensemble(models, dataset, batchsize=16):
         tgt_stellar_labels = np.vstack(tgt_stellar_labels)
         pred_stellar_labels = np.vstack(pred_stellar_labels)
         sigma_stellar_labels = np.vstack(sigma_stellar_labels)
+        chunk_sigmas = np.array(chunk_sigmas)
+        
+        chunk_sigmas = np.nanmean(chunk_sigmas, axis=0).T
         
     return (tgt_stellar_labels, pred_stellar_labels, 
-            sigma_stellar_labels, tgt_task_labels, pred_task_labels)
+            sigma_stellar_labels, tgt_task_labels, pred_task_labels, chunk_sigmas, starting_indices)
 
 def plot_resid(label_keys, tgt_stellar_labels, pred_stellar_labels, sigma_stellar_labels=None,
               y_lims = [1000, 1, 1, 1, 10], savename=None):
@@ -320,4 +398,58 @@ def plot_one_to_one(label_keys, tgt_stellar_labels, pred_stellar_labels, est_unc
         ax.set_ylim(label_min, label_max)
 
     plt.tight_layout()
+    plt.show()
+    
+def plot_wave_sigma(chunk_sigmas, label_keys, wave_grid_file, 
+                    y_lims=[(0,1)], fontsize=18, savename=None):
+    
+    fontsize_small=0.8*fontsize
+
+    wave_grid = np.load(wave_grid_file)
+    
+    num_ax = len(label_keys)
+        
+    fig = plt.figure(figsize=(9,3*(num_ax)))
+    gs = gridspec.GridSpec(num_ax, 1)
+    
+    linestyles = ['-', '--', '-.', ':']
+
+    for i, key in enumerate(label_keys):
+        
+        
+        s_vals = chunk_sigmas[i]
+        wave_sigma = np.empty((len(s_vals), len(wave_grid))) * np.nan
+        for j, indx in enumerate(starting_indices):
+            wave_sigma[j, indx:indx+model.num_fluxes] = s_vals[j]
+        wave_sigma = np.nanmean(wave_sigma, axis=0)
+        
+        # Make label pretty
+        label_key = key
+        if key=='teff':
+            label_key = 'T$_{\mathrm{eff}}$ [K]'
+        if key=='feh':
+            label_key = '[Fe/H]'
+        if key=='logg':
+            label_key = '$\log{g}$'
+        if key=='alpha':
+            label_key = r'[$\alpha$/H]'
+        if key=='vrad':
+            label_key = r'$v_{\mathrm{rad}}$ [km/s]'
+                
+        ax = plt.subplot(gs[i])
+    
+        ax.set_title('(%s) %s' % (ascii_lowercase[i],label_key), fontsize=fontsize)
+        ax.plot(wave_grid, wave_sigma, c='r')
+        ax.set_ylabel('$\sigma$',fontsize=fontsize)
+        ax.set_ylim(*y_lims[i])
+        ax.set_xlabel('Wavelength ($\AA$)',fontsize=fontsize)
+        ax.tick_params(labelsize=fontsize_small)
+        ax.grid(True)
+
+    plt.tight_layout()
+    
+    if savename is not None:
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=200,
+                    bbox_inches='tight', pad_inches=0.05)
+        
     plt.show()
