@@ -182,12 +182,6 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
                 noise_factor = np.random.uniform(0.01, self.max_noise_factor)
                 spectrum = add_noise(spectrum, noise_factor=noise_factor)
                 
-            if self.apply_dropout:
-                # Dropout random chunks of the spectrum
-                spectrum = dropout_chunks(spectrum, 
-                                          max_chunks=10, 
-                                          max_chunk_size=200)
-                
             # Perform augmentations according to tasks
             task_labels = []
             for t, tm, ts in zip(self.tasks, self.task_means, self.task_stds):
@@ -202,6 +196,13 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
                 if t.lower()=='snr':
                     snr = calc_snr(spectrum[spectrum>0.1])
                     task_labels.append(snr)
+                    
+            if self.apply_dropout:
+                # Dropout random chunks of the spectrum
+                spectrum = dropout_chunks(spectrum, 
+                                          max_chunks=10, 
+                                          max_chunk_size=200)
+                
             task_labels = torch.from_numpy(np.array(task_labels).astype(np.float32))
             spectrum = torch.from_numpy(spectrum.astype(np.float32))
             

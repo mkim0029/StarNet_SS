@@ -23,6 +23,8 @@ def plot_progress(losses, tasks, y_lims=[(0,1)], x_lim=None,
         num_ax += 1
     if 'val_feats' in losses.keys():
         num_ax += 1
+    if 'train_src_feats' in losses.keys():
+        num_ax += 1
         
     fig = plt.figure(figsize=(9,3*(num_ax)))
     
@@ -72,6 +74,22 @@ def plot_progress(losses, tasks, y_lims=[(0,1)], x_lim=None,
                      fontsize=fontsize)
         ax.plot(losses['batch_iters'], np.array(losses['val_feats'])[:],
                  label=r'Validation', c='k')
+        ax.set_ylabel('Distance',fontsize=fontsize)
+        ax.set_ylim(*y_lims[cur_ax])
+        ax.legend(fontsize=fontsize_small, ncol=1)
+        cur_ax+=1
+        
+    if 'train_src_feats' in losses.keys():
+        
+        ax = plt.subplot(gs[cur_ax])
+        axs.append(ax)
+    
+        ax.set_title('(%s) Feature Loss' % (ascii_lowercase[cur_ax]), 
+                     fontsize=fontsize)
+        ax.plot(losses['batch_iters'], np.array(losses['train_src_feats'])[:],
+                 label=r'Training$_{src}$', c='r')
+        ax.plot(losses['batch_iters'], np.array(losses['train_tgt_feats'])[:],
+                 label=r'Training$_{tgt}$', c='k')
         ax.set_ylabel('Distance',fontsize=fontsize)
         ax.set_ylim(*y_lims[cur_ax])
         ax.legend(fontsize=fontsize_small, ncol=1)
@@ -156,7 +174,7 @@ def plot_label_MAE(losses, label_keys, y_lims=[(0,1)], x_lim=None,
         ax.plot(losses['batch_iters'], losses['val_tgt_%s' % key],
                  label=r'Target', c='r')
         ax.set_ylabel('MAE',fontsize=fontsize)
-        ax.set_ylim(*y_lims[0])
+        ax.set_ylim(*y_lims[i])
         ax.legend(fontsize=fontsize_small)
         
         if x_lim is not None:
@@ -221,7 +239,7 @@ def predict_ensemble(models, dataset, channel_starts = [0, 11880, 25880], batchs
     # Create a list of the starting indices of the chunks
     channel_starts = [0, 11880, 25880]
     starting_indices = []
-    for cs, i in zip(channel_starts, target_val_dataset.starting_indices):
+    for cs, i in zip(channel_starts, dataset.starting_indices):
         starting_indices.append(cs+i)
     starting_indices = np.concatenate(starting_indices)
     
@@ -381,7 +399,7 @@ def plot_resid(label_keys, tgt_stellar_labels, pred_stellar_labels, sigma_stella
     
     plt.show()
     
-def plot_one_to_one(label_keys, tgt_stellar_labels, pred_stellar_labels, est_unc):
+def plot_one_to_one(label_keys, tgt_stellar_labels, pred_stellar_labels):
 
     fig, axes = plt.subplots(len(label_keys), 1, figsize=(6, len(label_keys)*6))
 
@@ -400,7 +418,7 @@ def plot_one_to_one(label_keys, tgt_stellar_labels, pred_stellar_labels, est_unc
     plt.tight_layout()
     plt.show()
     
-def plot_wave_sigma(chunk_sigmas, label_keys, wave_grid_file, 
+def plot_wave_sigma(chunk_sigmas, label_keys, wave_grid_file, starting_indices, num_fluxes,
                     y_lims=[(0,1)], fontsize=18, savename=None):
     
     fontsize_small=0.8*fontsize
@@ -420,7 +438,7 @@ def plot_wave_sigma(chunk_sigmas, label_keys, wave_grid_file,
         s_vals = chunk_sigmas[i]
         wave_sigma = np.empty((len(s_vals), len(wave_grid))) * np.nan
         for j, indx in enumerate(starting_indices):
-            wave_sigma[j, indx:indx+model.num_fluxes] = s_vals[j]
+            wave_sigma[j, indx:indx+num_fluxes] = s_vals[j]
         wave_sigma = np.nanmean(wave_sigma, axis=0)
         
         # Make label pretty
