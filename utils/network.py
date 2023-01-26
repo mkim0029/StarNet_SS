@@ -119,30 +119,39 @@ class PositionalEncoding(torch.nn.Module):
         return self.dropout(x)
     
 class StarNet(torch.nn.Module):
-    def __init__(self, architecture_config, label_keys, device):
+    def __init__(self, architecture_config, multimodal_keys,
+                 unimodal_keys, mutlimodal_vals, device):
         super().__init__()
         
         # ARCHITECTURE PARAMETERS
-        self.label_keys = label_keys
+        self.multimodal_keys = multimodal_keys
+        self.unimodal_keys = unimodal_keys
+        self.mutlimodal_vals = mutlimodal_vals
         self.num_fluxes = int(architecture_config['num_fluxes'])
         spectrum_size = int(architecture_config['spectrum_size'])
         self.d_model = int(architecture_config['encoder_dim'])
-        num_filters = eval(architecture_config['conv_filts'])
-        filter_lengths = eval(architecture_config['filter_lengths'])
-        conv_strides = eval(architecture_config['conv_strides'])
+        num_filters_sh = eval(architecture_config['conv_filts_sh'])
+        filter_lengths_sh = eval(architecture_config['filter_lengths_sh'])
+        conv_strides_sh = eval(architecture_config['conv_strides_sh'])
+        num_filters_sp = eval(architecture_config['conv_filts_sp'])
+        filter_lengths_sp = eval(architecture_config['filter_lengths_sp'])
+        conv_strides_sp = eval(architecture_config['conv_strides_sp'])
         pool_length = int(architecture_config['pool_length'])
-        self.num_hidden = eval(architecture_config['num_hidden'])
-        self.label_means = torch.tensor(eval(architecture_config['label_means'])).to(device)
-        self.label_stds = torch.tensor(eval(architecture_config['label_stds'])).to(device)
+        self.unimodal_means = torch.tensor(eval(architecture_config['unimodal_means'])).to(device)
+        self.unimodal_stds = torch.tensor(eval(architecture_config['unimodal_stds'])).to(device)
         self.spectra_mean = float(architecture_config['spectra_mean'])
         self.spectra_std = float(architecture_config['spectra_std'])
-        self.num_labels = len(self.label_keys)
+        self.num_mm_labels = len(self.multimodal_keys)
+        self.num_um_labels = len(self.unimodal_keys)
         self.tasks = eval(architecture_config['tasks'])
         if (len(self.tasks)==1 and self.tasks[0]=='[]'):
             self.tasks = []
         self.task_means = torch.tensor(eval(architecture_config['task_means'])).to(device)
         self.task_stds = torch.tensor(eval(architecture_config['task_stds'])).to(device)
+        self.device = device
           
+        self.use_split_convs = len(num_filters_sh)>0   
+        
         in_channels = 1
         if self.d_model>0:
             # Input layer that operates on each pixel individually
@@ -157,37 +166,60 @@ class StarNet(torch.nn.Module):
             )
             in_channels = self.d_model
 
-        # Convolutional and pooling layers
-        self.feature_encoder = StarNet_convs(in_channels=in_channels,
-                                             num_filters=num_filters,
-                                             strides=conv_strides,
-                                             filter_lengths=filter_lengths, 
+        # Shared convolutional and pooling layers
+        self.feature_encoder_sh = StarNet_convs(in_channels=in_channels,
+                                             num_filters=num_filters_sh,
+                                             strides=conv_strides_sh,
+                                             filter_lengths=filter_lengths_sh, 
                                              pool_length=pool_length).to(device)
+        
+        # Split convolutional layers
+        if self.use_split_convs:
+            self.feature_encoder_labels = StarNet_convs(in_channels=num_filters_sh[-1],
+                                                 num_filters=num_filters_sp,
+                                                 strides=conv_strides_sp,
+                                                 filter_lengths=filter_lengths_sp, 
+                                                 pool_length=0).to(device)
+            if len(self.tasks)>0:
+                self.feature_encoder_tasks = StarNet_convs(in_channels=num_filters_sh[-1],
+                                                 num_filters=num_filters_sp,
+                                                 strides=conv_strides_sp,
+                                                 filter_lengths=filter_lengths_sp, 
+                                                 pool_length=0).to(device)
 
         # Determine shape after convolutions have been applied
         feat_map_shape = compute_out_size((in_channels, self.num_fluxes), 
-                                             self.feature_encoder, device)
+                                             self.feature_encoder_sh, device)
+        if len(num_filters_sh)>0:
+            feat_map_shape = compute_out_size((feat_map_shape[0], feat_map_shape[1]), 
+                                             self.feature_encoder_labels, device)
         print('Feature map shape: ', feat_map_shape)
 
-        if len(self.num_hidden)>0:
-            # Fully connected layers
-            self.feature_fcs = StarNet_fcs(in_features=feat_map_shape[0]*feat_map_shape[1], 
-                                           num_hidden=self.num_hidden).to(device)
-            in_features = self.num_hidden[-1] + feat_map_shape[0]*feat_map_shape[1]
-        else:
-            in_features = feat_map_shape[0]*feat_map_shape[1]
+        in_features = feat_map_shape[0]*feat_map_shape[1]
 
-            
         # Network head that predicts labels as linear output
-        if self.num_labels>0:
-            self.label_predictor = StarNet_head(in_features=in_features, 
-                                               out_features=self.num_labels).to(device)
+        self.label_classifiers = []
+        if self.num_mm_labels>0:
+            for vals in mutlimodal_vals:
+                # Fully connected classifier
+                self.label_classifiers.append(StarNet_head(in_features=in_features, 
+                                                          out_features=len(vals), 
+                                                          logsoftmax=True).to(device))
+        
+        # Network head that predicts unimodal labels as linear output
+        if self.num_um_labels>0:
+            self.unimodal_predictor = StarNet_head(in_features=in_features, 
+                                               out_features=self.num_um_labels).to(device)
         
         # Self-supervised task predictor
         if len(self.tasks)>0:
             self.task_predictor = StarNet_head(in_features=in_features, 
                                               out_features=len(self.tasks)).to(device)
 
+    
+    def set_multimodal_vals(self, multimodal_vals):
+        self.multimodal_vals = [vals.to(self.device) for vals in multimodal_vals]
+    
     def normalize_spectra(self, spectra):
         '''Normalize spectra to have zero-mean and unit-variance.'''
         return (spectra - self.spectra_mean) / self.spectra_std
@@ -196,16 +228,36 @@ class StarNet(torch.nn.Module):
         '''Undo the normalization to put spectra back in the original scale.'''
         return spectra * self.spectra_std + self.spectra_mean
 
-    def normalize_labels(self, labels):
-        '''Normalize each label to have zero-mean and unit-variance.'''
-        return (labels - self.label_means) / self.label_stds
+    def multimodal_to_class(self, labels):
+        '''Convert labels into classes based on the multimodal values.'''
+        classes = []
+        for i, vals in enumerate(self.mutlimodal_vals):
+            classes.append(torch.cat([torch.where(vals==labels[j,i])[0] for j in range(len(labels))]))
+        return classes
     
-    def denormalize_labels(self, labels, using_unc=False):
+    def class_to_label(self, classes):
+        '''Convert probabilities into labels using a weighted sum and the multimodal values.'''
+        labels = []
+        for cla, c_vals in zip(classes,
+                               self.mutlimodal_vals):
+
+            #c_vals = torch.tensor(c_vals).to(cla.device)
+            
+            # Turn predictions in "probabilities"
+            prob = torch.exp(cla)
+
+            # Take weighted average using class values and probabilities
+            labels.append(torch.sum(prob*c_vals, axis=1))
+
+        return torch.stack(labels).T
+    
+    def normalize_unimodal(self, labels):
+        '''Normalize each label to have zero-mean and unit-variance.'''
+        return (labels - self.unimodal_means) / self.unimodal_stds
+    
+    def denormalize_unimodal(self, labels):
         '''Rescale the labels back to their original units.'''
-        if using_unc:
-            return labels * self.label_stds
-        else:
-            return labels * self.label_stds + self.label_means
+        return labels * self.unimodal_stds + self.unimodal_means
     
     def normalize_tasks(self, task_labels):
         '''Normalize each task label to have zero-mean and unit-variance.'''
@@ -222,12 +274,20 @@ class StarNet(torch.nn.Module):
             self.encoder_inp_layer.train()
             self.pos_encoder.train()
 
-        self.feature_encoder.train()
-        if len(self.num_hidden)>0:
-            self.feature_fcs.train()
+        self.feature_encoder_sh.train()
+        
+        if self.use_split_convs:
+            self.feature_encoder_labels.train()
+            if len(self.tasks)>0:
+                self.feature_encoder_tasks.train()
 
-        if self.num_labels>0:
-            self.label_predictor.train()
+        if self.num_mm_labels>0:
+            for classifier in self.label_classifiers:
+                classifier.train()
+                
+        if self.num_um_labels>0:
+            self.unimodal_predictor.train()
+            
         if len(self.tasks)>0:
             self.task_predictor.train()
             
@@ -238,12 +298,20 @@ class StarNet(torch.nn.Module):
             self.encoder_inp_layer.eval()
             self.pos_encoder.eval()
             
-        self.feature_encoder.eval()
-        if len(self.num_hidden)>0:
-            self.feature_fcs.eval()
+        self.feature_encoder_sh.eval()
+        
+        if self.use_split_convs:
+            self.feature_encoder_labels.eval()
+            if len(self.tasks)>0:
+                self.feature_encoder_tasks.eval()
 
-        if self.num_labels>0:
-            self.label_predictor.eval()
+        if self.num_mm_labels>0:
+            for classifier in self.label_classifiers:
+                classifier.eval()
+                
+        if self.num_um_labels>0:
+            self.unimodal_predictor.eval()
+            
         if len(self.tasks)>0:
             self.task_predictor.eval()
             
@@ -255,13 +323,19 @@ class StarNet(torch.nn.Module):
             parameters.append(self.encoder_inp_layer.parameters())
             parameters.append(self.pos_encoder.parameters())
             
-        parameters.append(self.feature_encoder.parameters())
+        parameters.append(self.feature_encoder_sh.parameters())
 
-        if len(self.num_hidden)>0:
-            parameters.append(self.feature_fcs.parameters())
+        if self.use_split_convs:
+            parameters.append(self.feature_encoder_labels.parameters())
+            if len(self.tasks)>0:
+                parameters.append(self.feature_encoder_tasks.parameters())
         
-        if self.num_labels>0:
-            parameters.append(self.label_predictor.parameters())            
+        if self.num_mm_labels>0:
+            for net in self.label_classifiers:
+                parameters.append(net.parameters())
+        
+        if self.num_um_labels>0:
+            parameters.append(self.unimodal_predictor.parameters())            
 
         if len(self.tasks)>0:
             parameters.append(self.task_predictor.parameters())
@@ -269,7 +343,7 @@ class StarNet(torch.nn.Module):
         return chain(*parameters)
         
     def forward(self, x, pixel_indx=None, norm_in=True, 
-                denorm_out=False, return_feats=False):
+                denorm_out=False, return_feats=False, return_feats_only=False):
         
         if norm_in:
             # Normalize spectra
@@ -287,38 +361,51 @@ class StarNet(torch.nn.Module):
             x = torch.swapaxes(x, 1, 2)
 
         # Extract features
-        x = self.feature_encoder(x)
-        x = torch.flatten(x, start_dim=1)
+        x = self.feature_encoder_sh(x)
 
-        if len(self.num_hidden)>0:
-            # Apply fully-connected layers and concatenate with features
-            x = torch.cat((self.feature_fcs(x), x), -1)
+        if self.use_split_convs:
+            if len(self.tasks)>0:
+                x_task = self.feature_encoder_tasks(x)
+                x_task = torch.flatten(x_task, start_dim=1)
+            x = self.feature_encoder_labels(x)
+        x = torch.flatten(x, start_dim=1)
         
-        if return_feats:
+        if return_feats_only:
             # Only return feature maps
             return x
         else:
             return_dict = {}
+            
+            if return_feats:
+                return_dict['feature map'] = x
                 
-            if self.num_labels>0:
+            if self.num_mm_labels>0:
                 # Predict labels from features
-                labels = self.label_predictor(x)
+                mm_labels = [classifier(x) for classifier in self.label_classifiers]
                 if denorm_out:
                     # Denormalize labels
-                    labels = self.denormalize_labels(labels)
-                return_dict['stellar labels'] = labels
+                    mm_labels = self.class_to_label(mm_labels)
+                return_dict['multimodal labels'] = mm_labels
+                
+            if self.num_um_labels>0:
+                # Predict labels from features
+                um_labels = self.unimodal_predictor(x)
+                if denorm_out:
+                    # Denormalize labels
+                    um_labels = self.denormalize_unimodal(um_labels)
+                return_dict['unimodal labels'] = um_labels
 
             if len(self.tasks)>0:
                 # Predict tasks
-                task_labels = self.task_predictor(x)
+                task_labels = self.task_predictor(x_task)
                 if denorm_out:
                     # Denormalize task labels
                     task_labels = self.denormalize_tasks(task_labels)
-                return_dict['task_labels'] = task_labels
+                return_dict['task labels'] = task_labels
                     
             return return_dict
         
-def build_starnet(config, device, model_name):
+def build_starnet(config, device, model_name, mutlimodal_vals):
     
     # Display model configuration
     print('\nCreating model: %s'%model_name)
@@ -333,7 +420,9 @@ def build_starnet(config, device, model_name):
     # Construct Network
     print('\nBuilding networks...')
     model = StarNet(config['ARCHITECTURE'], 
-                    eval(config['DATA']['label_keys']), 
+                    eval(config['DATA']['multimodal_keys']),
+                    eval(config['DATA']['unimodal_keys']), 
+                    mutlimodal_vals,
                     device)
     model.to(device)
 
@@ -344,13 +433,20 @@ def build_starnet(config, device, model_name):
         print('\n\nPositional Encoder:\n')
         print(model.pos_encoder)
     print('\n\nFeature Extractor Architecture:\n')
-    print(model.feature_encoder)
-    if len(model.num_hidden)>0:
-        print('\n\nFeature Fully-Connected Architecture:\n')
-        print(model.feature_fcs)
-    if model.num_labels>0:
-        print('\n\nLabel Prediction Architecture:\n')
-        print(model.label_predictor)
+    print(model.feature_encoder_sh)
+    if model.use_split_convs:
+        print(model.feature_encoder_labels)
+        if len(model.tasks)>0:
+            print(model.feature_encoder_tasks)
+            
+    if model.num_mm_labels>0:
+        print('\n\nMultimodal Label Prediction Architecture:\n')
+        for mod in model.label_classifiers:
+            print(mod)
+
+    if model.num_um_labels>0:
+        print('\n\nUnimodal Label Prediction Architecture:\n')
+        print(model.unimodal_predictor)
     if len(model.tasks)>0:
         print('\n\nTask Prediction Architecture:\n')
         print(model.task_predictor)
@@ -381,6 +477,10 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None,
 
         # Load model weights
         model.load_state_dict(checkpoint['model'])
+        
+        for net, state in zip(model.label_classifiers, checkpoint['classifier models']):
+            net.load_state_dict(state)
+        
     else:
         print('\nStarting fresh model to train...')
         losses = defaultdict(list)

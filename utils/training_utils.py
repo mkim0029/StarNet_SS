@@ -78,7 +78,8 @@ def task_loss_fn(y_true, y_pred):
     return torch.mean((y_true - y_pred)**2, axis=0)
 
 def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler, 
-             tgt_task_weights, src_task_weights, losses_cp, mode='train'):
+             source_mm_weights, source_um_weights, source_feature_weight, target_feature_weight,
+             source_task_weights, target_task_weights, losses_cp, mode='train'):
     
     if mode=='train':
         model.module.train_mode()
@@ -89,30 +90,62 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
     # Compute prediction on source batch
     model_outputs_src = model(src_batch['spectrum'],
                               src_batch['pixel_indx'],
-                              norm_in=True, denorm_out=False)
+                              norm_in=True, denorm_out=False, return_feats=True)
     # Compute prediction on target batch
     model_outputs_tgt = model(tgt_batch['spectrum'],
                               tgt_batch['pixel_indx'],
-                              norm_in=True, denorm_out=False)
+                              norm_in=True, denorm_out=False, return_feats=True)
         
-    if model.module.num_labels>0:
-        src_label_loss = torch.nn.MSELoss()(model_outputs_src['stellar labels'], 
-                                            model.module.normalize_labels(src_batch['stellar labels']))
+    if model.module.num_mm_labels>0:
+        # Compute average loss on stellar class labels
+        src_mm_loss = 0.  
+        src_classes = model.module.multimodal_to_class(src_batch['multimodal labels'])
+        for i in range(model.module.num_mm_labels):
+            src_mm_loss = src_mm_loss + source_mm_weights[i] * torch.nn.NLLLoss()(model_outputs_src['multimodal labels'][i], 
+                                                                                 src_classes[i])
+        src_mm_loss = src_mm_loss * 1/model.module.num_mm_labels
+        # Add to total loss
+        total_loss = total_loss + src_mm_loss
+    
+    if model.module.num_um_labels>0:
+        src_um_loss = torch.nn.MSELoss()(model_outputs_src['unimodal labels'], 
+                                            model.module.normalize_unimodal(src_batch['unimodal labels']))
         
         # Add to total loss
-        total_loss = total_loss + src_label_loss
+        total_loss = total_loss + src_um_loss
     else:
         src_label_loss = 0.
+        
+    if model.module.use_split_convs:
+        # Compute prediction on second source batch
+        model_outputs_src2 = model(src_batch['spectrum2'],
+                                  src_batch['pixel_indx2'],
+                                  norm_in=True, denorm_out=False, return_feats=True)
+        # Compute prediction on second target batch
+        model_outputs_tgt2 = model(tgt_batch['spectrum2'],
+                                  tgt_batch['pixel_indx2'],
+                                  norm_in=True, denorm_out=False, return_feats=True)
+        
+        # Compare feature maps
+        src_feature_loss = torch.nn.MSELoss()(model_outputs_src['feature map'], 
+                                              model_outputs_src2['feature map'])
+        
+        tgt_feature_loss = torch.nn.MSELoss()(model_outputs_tgt['feature map'], 
+                                              model_outputs_tgt2['feature map'])
+        
+        
+        total_loss = total_loss + torch.mean(source_feature_weight*src_feature_loss)
+        total_loss = total_loss + torch.mean(target_feature_weight*tgt_feature_loss)
         
     if len(model.module.tasks)>0:
         # Compute loss on task labels
         src_task_losses = task_loss_fn(model.module.normalize_tasks(src_batch['task labels']), 
-                                       model_outputs_src['task_labels'])
+                                       model_outputs_src['task labels'])
         tgt_task_losses = task_loss_fn(model.module.normalize_tasks(tgt_batch['task labels']), 
-                                       model_outputs_tgt['task_labels'])
+                                       model_outputs_tgt['task labels'])
         # Add to total loss
-        total_loss = total_loss + torch.mean(src_task_losses*src_task_weights)
-        total_loss = total_loss + torch.mean(tgt_task_losses*tgt_task_weights)
+        total_loss = total_loss + torch.mean(src_task_losses*source_task_weights)
+        total_loss = total_loss + torch.mean(tgt_task_losses*target_task_weights)
         
     if mode=='train':        
         # Update the gradients
@@ -120,8 +153,13 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
 
         # Save loss and metrics
         losses_cp['train_loss'].append(float(total_loss))
-        if model.module.num_labels>0:
-            losses_cp['train_src_labels'].append(float(src_label_loss))
+        if model.module.use_split_convs:
+            losses_cp['train_src_feats'].append(float(src_feature_loss))
+            losses_cp['train_tgt_feats'].append(float(tgt_feature_loss))
+        if model.module.num_mm_labels>0:
+            losses_cp['train_src_mm_labels'].append(float(src_mm_loss))
+        if model.module.num_um_labels>0:
+            losses_cp['train_src_um_labels'].append(float(src_um_loss))
         if len(model.module.tasks)>0:
             losses_cp['train_src_tasks'].append(src_task_losses.cpu().data.numpy().tolist())
             losses_cp['train_tgt_tasks'].append(tgt_task_losses.cpu().data.numpy().tolist())
@@ -153,37 +191,48 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     for i in range(0, src_batch['spectrum chunks'].size(1), batch_size):
         model_feats_src.append(model(src_batch['spectrum chunks'][:,i:i+batch_size].squeeze(0),
                                      src_batch['pixel_indx'][:,i:i+batch_size].squeeze(0),
-                                     norm_in=True, return_feats=True))
+                                     norm_in=True, return_feats_only=True))
     
     # Produce feature map of target batch
     model_feats_tgt = []
     for i in range(0, tgt_batch['spectrum chunks'].size(1), batch_size):
         model_feats_tgt.append(model(tgt_batch['spectrum chunks'][:,i:i+batch_size].squeeze(0),
                                      tgt_batch['pixel_indx'][:,i:i+batch_size].squeeze(0),
-                                     norm_in=True, return_feats=True))
+                                     norm_in=True, return_feats_only=True))
     model_feats_src = torch.cat(model_feats_src)
     model_feats_tgt = torch.cat(model_feats_tgt)
     
     # Predict labels
-    label_preds_src = model.module.label_predictor(model_feats_src)
-    label_preds_tgt = model.module.label_predictor(model_feats_tgt)
+    mm_label_preds_src = [classifier(model_feats_src) for classifier in model.module.label_classifiers]
+    mm_label_preds_tgt = [classifier(model_feats_tgt) for classifier in model.module.label_classifiers]
+    um_label_preds_src = model.module.unimodal_predictor(model_feats_src)
+    um_label_preds_tgt = model.module.unimodal_predictor(model_feats_tgt)
     
     # Compute average from all chunks
-    label_preds_src = torch.mean(label_preds_src, axis=0)
-    label_preds_tgt = torch.mean(label_preds_tgt, axis=0)
+    mm_label_preds_src = [torch.mean(preds, axis=0, keepdim=True) for preds in mm_label_preds_src]
+    mm_label_preds_tgt = [torch.mean(preds, axis=0, keepdim=True) for preds in mm_label_preds_tgt]
+    um_label_preds_src = torch.mean(um_label_preds_src, axis=0)
+    um_label_preds_tgt = torch.mean(um_label_preds_tgt, axis=0)
     
-    # Compute mean squared error on label predictions
-    src_label_loss = torch.nn.MSELoss()(label_preds_src, 
-                                        model.module.normalize_labels(src_batch['stellar labels'][0]))
-    tgt_label_loss = torch.nn.MSELoss()(label_preds_tgt, 
-                                        model.module.normalize_labels(tgt_batch['stellar labels'][0]))
+    # Compute negative log likelihood on multimodal label predictions
+    src_classes = model.module.multimodal_to_class(src_batch['multimodal labels'])
+    tgt_classes = model.module.multimodal_to_class(tgt_batch['multimodal labels'])
+    src_mm_losses = []
+    tgt_mm_losses = []
+    for i in range(model.module.num_mm_labels):
+        src_mm_losses.append(torch.nn.NLLLoss()(mm_label_preds_src[i], 
+                                                src_classes[i]))
+        if len(tgt_classes[i])==0:
+            tgt_mm_losses.append(torch.nan)
+        else:
+            tgt_mm_losses.append(torch.nn.NLLLoss()(mm_label_preds_tgt[i], 
+                                                    tgt_classes[i]))
     
-    
-    # Compute abs error on each label prediction separately
-    src_label_mae = torch.abs(label_preds_src - 
-                                         model.module.normalize_labels(src_batch['stellar labels'][0])) 
-    tgt_label_mae = torch.abs(label_preds_tgt - 
-                                         model.module.normalize_labels(tgt_batch['stellar labels'][0])) 
+    # Compute mean squared error on unimodal label predictions
+    src_um_loss = torch.nn.MSELoss()(um_label_preds_src, 
+                                     model.module.normalize_unimodal(src_batch['unimodal labels'][0]))
+    tgt_um_loss = torch.nn.MSELoss()(um_label_preds_tgt, 
+                                     model.module.normalize_unimodal(tgt_batch['unimodal labels'][0]))
     
     # Compute max and min of each feature
     max_feat = torch.max(torch.cat((model_feats_src, model_feats_tgt), 0), 
@@ -204,11 +253,11 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     # Compute mean absolute error
     feat_loss = torch.mean(torch.abs(model_feats_src_norm[src_indices]-model_feats_tgt_norm))
     
-    losses_cp['val_src_labels'].append(float(src_label_loss))
-    losses_cp['val_tgt_labels'].append(float(tgt_label_loss))
+    losses_cp['val_src_um'].append(float(src_um_loss))
+    losses_cp['val_tgt_um'].append(float(tgt_um_loss))
     losses_cp['val_feats'].append(float(feat_loss))
     
-    for src_val, tgt_val, label_key in zip(src_label_mae, tgt_label_mae, model.module.label_keys):
+    for src_val, tgt_val, label_key in zip(src_mm_losses, tgt_mm_losses, model.module.multimodal_keys):
         losses_cp['val_src_'+label_key].append(float(src_val))
         losses_cp['val_tgt_'+label_key].append(float(tgt_val))
     

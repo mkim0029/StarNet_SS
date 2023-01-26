@@ -22,16 +22,16 @@ def parseArguments():
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=3)
+                        type=int, default=6)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
     parser.add_argument("-mem", "--memory", 
                         help="Memory per job in GB.", 
-                        type=int, default=16)
+                        type=int, default=20)
     parser.add_argument("-ncp", "--num_cpu", 
                         help="Number of CPU cores per job.", 
-                        type=int, default=7)
+                        type=int, default=12)
     
     # Config params
     parser.add_argument("-sfn", "--source_data_file", 
@@ -43,18 +43,18 @@ def parseArguments():
     parser.add_argument("-wfn", "--wave_grid_file", 
                         help="Wave grid file.", 
                         type=str, default='weave_hr_wavegrid_arms.npy')
-    parser.add_argument("-lk", "--label_keys",  type=str, nargs='+',
+    parser.add_argument("-mmk", "--multimodal_keys",  type=str, nargs='+',
                         help="Dataset keys for labels in data file.", 
-                        default="['teff', 'feh', 'logg', 'alpha', 'vrad']") 
+                        default="['teff', 'feh', 'logg', 'alpha']") 
+    parser.add_argument("-umk", "--unimodal_keys",  type=str, nargs='+',
+                        help="Dataset keys for labels in data file.", 
+                        default="['vrad']") 
     parser.add_argument("-cn", "--continuum_normalize", 
                         help="Whether or not to continuum normalize each spectrum.", 
                         type=str, default='True')
     parser.add_argument("-dbm", "--divide_by_median", 
                         help="Whether or not to divide each spectrum by its median value.", 
                         type=str, default='False')
-    parser.add_argument("-sc", "--split_channels", 
-                        help="Whether or not to split each spectrum into channels.", 
-                        type=str, default='True')
     parser.add_argument("-an", "--add_noise_to_source", 
                         help="Whether or not to add noise to source spectra during training.", 
                         type=str, default='True')
@@ -76,7 +76,19 @@ def parseArguments():
                         type=float, default=0.1)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
-                        type=int, default=800000)
+                        type=int, default=1000000)
+    parser.add_argument("-smw", "--source_mm_weights", 
+                        help="Loss weights for the multimodal NLL in the source domain.", 
+                        default=[1., 1., 1., 1.])
+    parser.add_argument("-suw", "--source_um_weights", 
+                        help="Loss weights for the unimodal MSE in the source domain.", 
+                        default=[1.])
+    parser.add_argument("-tfw", "--target_feature_weight", 
+                        help="Loss weight for the feature comparison in the target domain.", 
+                        type=float, default=1.)
+    parser.add_argument("-sfw", "--source_feature_weight", 
+                        help="Loss weight for the feature comparison in the source domain.", 
+                        type=float, default=1.)
     parser.add_argument("-ttw", "--target_task_weights", 
                         help="Loss weights for each task in the target domain.", 
                         default=[0.1, 0.05, 0.05, 0.1])
@@ -93,33 +105,39 @@ def parseArguments():
     parser.add_argument("-ed", "--encoder_dim", 
                         help="Dimension of positional encoder (0 to not use positional encoder).", 
                         type=int, default=18)
-    parser.add_argument("-cf", "--conv_filts", 
+    parser.add_argument("-cfsh", "--conv_filts_sh", 
                         help="Number of filters in conv layers (for cnn).", 
-                        default=[128, 128, 128, 128, 32])
-    parser.add_argument("-fl", "--filter_lengths", 
+                        default=[128, 128, 128, 128])
+    parser.add_argument("-flsh", "--filter_lengths_sh", 
                         help="Length of filters in conv layers (for cnn).", 
-                        default=[15,15,7,7,7])
-    parser.add_argument("-cs", "--conv_strides", 
+                        default=[15, 15, 7, 7])
+    parser.add_argument("-cssh", "--conv_strides_sh", 
                         help="Stride length of filters in conv layers (for cnn).", 
-                        default=[4,2,2,2,2])
-    parser.add_argument("-nh", "--num_hidden", 
-                        help="Number of nodes in fully-connected layers (for cnn).", 
-                        default=[])
+                        default=[4, 2, 2, 2])
+    parser.add_argument("-cf", "--conv_filts_sp", 
+                        help="Number of filters in conv layers (for cnn).", 
+                        default=[32])
+    parser.add_argument("-fl", "--filter_lengths_sp", 
+                        help="Length of filters in conv layers (for cnn).", 
+                        default=[7])
+    parser.add_argument("-cs", "--conv_strides_sp", 
+                        help="Stride length of filters in conv layers (for cnn).", 
+                        default=[2])
     parser.add_argument("-pl", "--pool_length", 
                         help="Length of pooling filter (for cnn).", 
                         default=0)
-    parser.add_argument("-lm", "--label_means", 
+    parser.add_argument("-umm", "--unimodal_means", 
                         help="Mean value of each label used for normalization.", 
-                        default=[5770, -1.06, 2.99, 0.217, 0])
-    parser.add_argument("-ls", "--label_stds", 
+                        default=[0])
+    parser.add_argument("-ums", "--unimodal_stds", 
                         help="Standard deviation of each label used for normalization.", 
-                        default=[1200, 1.65, 1.39, 0.337, 50])
+                        default=[50])
     parser.add_argument("-sm", "--spectra_mean", 
                         help="Number of flux values in spectrum.", 
-                        type=float, default=0.9)
+                        type=float, default=0.883)
     parser.add_argument("-ss", "--spectra_std", 
                         help="Number of flux values in spectrum.", 
-                        type=float, default=0.2)
+                        type=float, default=0.192)
     parser.add_argument("-ta", "--tasks", type=str, nargs='+',
                         help="Names of the tasks to use during training.", 
                         default=['wavelength', 'slope', 'bias', 'snr'])
@@ -142,7 +160,7 @@ def parseArguments():
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 data_dir = os.path.join(cur_dir, '../data')
 model_dir = os.path.join(cur_dir, '../models/')
-training_script = os.path.join(cur_dir, '../train_starnet_ss.py')
+training_script = os.path.join(cur_dir, '../train_starnet_ss3.py')
 
 # Read command line arguments
 args = parseArguments()
@@ -172,10 +190,10 @@ elif user_input=='o':
     config['DATA'] = {'source_data_file': args.source_data_file, 
                       'target_data_file': args.target_data_file, 
                       'wave_grid_file': args.wave_grid_file, 
-                      'label_keys': args.label_keys,
+                      'multimodal_keys': args.multimodal_keys,
+                      'unimodal_keys': args.unimodal_keys,
                       'continuum_normalize': args.continuum_normalize,
                       'divide_by_median': args.divide_by_median,
-                      'split_channels': args.split_channels,
                       'add_noise_to_source': args.add_noise_to_source,
                       'random_chunk': args.random_chunk,
                       'overlap': args.overlap}
@@ -184,19 +202,25 @@ elif user_input=='o':
                           'lr': args.lr,
                           'weight_decay': args.weight_decay,
                           'total_batch_iters': args.total_batch_iters,
+                          'source_mm_weights': args.source_mm_weights,
+                          'source_um_weights': args.source_um_weights,
+                          'target_feature_weight': args.target_feature_weight,
+                          'source_feature_weight': args.source_feature_weight,
                           'source_task_weights': args.source_task_weights,
                           'target_task_weights': args.target_task_weights}
     
     config['ARCHITECTURE'] = {'spectrum_size': args.spectrum_size,
                               'num_fluxes': args.num_fluxes,
                               'encoder_dim': args.encoder_dim,
-                              'conv_filts': args.conv_filts,
-                              'conv_strides': args.conv_strides,
-                              'filter_lengths': args.filter_lengths,
+                              'conv_filts_sh': args.conv_filts_sh,
+                              'conv_strides_sh': args.conv_strides_sh,
+                              'filter_lengths_sh': args.filter_lengths_sh,
+                              'conv_filts_sp': args.conv_filts_sp,
+                              'conv_strides_sp': args.conv_strides_sp,
+                              'filter_lengths_sp': args.filter_lengths_sp,
                               'pool_length': args.pool_length,
-                              'num_hidden': args.num_hidden,
-                              'label_means': args.label_means,
-                              'label_stds': args.label_stds,
+                              'unimodal_means': args.unimodal_means,
+                              'unimodal_stds': args.unimodal_stds,
                               'spectra_mean': args.spectra_mean,
                               'spectra_std': args.spectra_std,
                               'tasks': args.tasks,
