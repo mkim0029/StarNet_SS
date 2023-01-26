@@ -215,7 +215,7 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     um_label_preds_tgt = torch.mean(um_label_preds_tgt, axis=0)
     
     # Compute negative log likelihood on multimodal label predictions
-    src_classes = model.module.multimodal_to_class(src_batch['multimodal labels'])
+    '''src_classes = model.module.multimodal_to_class(src_batch['multimodal labels'])
     tgt_classes = model.module.multimodal_to_class(tgt_batch['multimodal labels'])
     src_mm_losses = []
     tgt_mm_losses = []
@@ -227,6 +227,16 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
         else:
             tgt_mm_losses.append(torch.nn.NLLLoss()(mm_label_preds_tgt[i], 
                                                     tgt_classes[i]))
+    '''
+    src_mm_losses = []
+    tgt_mm_losses = []
+    mm_label_preds_src = model.module.class_to_label(mm_label_preds_src)
+    mm_label_preds_tgt = model.module.class_to_label(mm_label_preds_tgt)
+    for i in range(model.module.num_mm_labels):
+        src_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_src[i], 
+                                               src_batch['multimodal labels'][i]))
+        tgt_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_tgt[i], 
+                                               tgt_batch['multimodal labels'][i]))
     
     # Compute mean squared error on unimodal label predictions
     src_um_loss = torch.nn.MSELoss()(um_label_preds_src, 
