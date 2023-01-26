@@ -211,8 +211,8 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     # Compute average from all chunks
     mm_label_preds_src = [torch.mean(preds, axis=0, keepdim=True) for preds in mm_label_preds_src]
     mm_label_preds_tgt = [torch.mean(preds, axis=0, keepdim=True) for preds in mm_label_preds_tgt]
-    um_label_preds_src = torch.mean(um_label_preds_src, axis=0)
-    um_label_preds_tgt = torch.mean(um_label_preds_tgt, axis=0)
+    um_label_preds_src = torch.mean(um_label_preds_src, axis=0, keepdim=True)
+    um_label_preds_tgt = torch.mean(um_label_preds_tgt, axis=0, keepdim=True)
     
     # Compute Mean Abs Error on multimodal label predictions
     src_mm_losses = []
@@ -230,7 +230,6 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     tgt_um_losses = []
     um_label_preds_src = model.module.denormalize_unimodal(um_label_preds_src)
     um_label_preds_tgt = model.module.denormalize_unimodal(um_label_preds_tgt)
-    print(um_label_preds_src, tgt_batch['unimodal labels'])
     for i in range(model.module.num_um_labels):
         src_um_losses.append(torch.nn.L1Loss()(um_label_preds_src[0,i], 
                                                src_batch['unimodal labels'][0,i]))
