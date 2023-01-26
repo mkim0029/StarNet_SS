@@ -225,11 +225,16 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
         tgt_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_tgt[0,i], 
                                                tgt_batch['multimodal labels'][0,i]))
     
-    # Compute mean squared error on unimodal label predictions
-    src_um_loss = torch.nn.MSELoss()(um_label_preds_src, 
-                                     model.module.normalize_unimodal(src_batch['unimodal labels'][0]))
-    tgt_um_loss = torch.nn.MSELoss()(um_label_preds_tgt, 
-                                     model.module.normalize_unimodal(tgt_batch['unimodal labels'][0]))
+    # Compute mean absolute error on unimodal label predictions
+    src_um_losses = []
+    tgt_um_losses = []
+    um_label_preds_src = model.module.denormalize_unimodal(um_label_preds_src)
+    um_label_preds_tgt = model.module.denormalize_unimodal(um_label_preds_tgt)
+    for i in range(model.module.num_um_labels):
+        src_um_losses.append(torch.nn.L1Loss()(um_label_preds_src[0,i], 
+                                               src_batch['unimodal labels'][0,i]))
+        tgt_um_losses.append(torch.nn.L1Loss()(um_label_preds_tgt[0,i], 
+                                               tgt_batch['unimodal labels'][0,i]))
     
     # Compute max and min of each feature
     max_feat = torch.max(torch.cat((model_feats_src, model_feats_tgt), 0), 
@@ -255,6 +260,9 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     losses_cp['val_feats'].append(float(feat_loss))
     
     for src_val, tgt_val, label_key in zip(src_mm_losses, tgt_mm_losses, model.module.multimodal_keys):
+        losses_cp['val_src_'+label_key].append(float(src_val))
+        losses_cp['val_tgt_'+label_key].append(float(tgt_val))
+    for src_val, tgt_val, label_key in zip(src_um_losses, tgt_um_losses, model.module.unimodal_keys):
         losses_cp['val_src_'+label_key].append(float(src_val))
         losses_cp['val_tgt_'+label_key].append(float(tgt_val))
     
