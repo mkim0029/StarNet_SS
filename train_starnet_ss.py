@@ -281,9 +281,9 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                 print('\t\tFeature Map Score: %0.3f' % (losses['val_feats'][-1]))
                 if model.module.num_mm_labels>0:
                     for i, key in enumerate(model.module.multimodal_keys):
-                        print('\t\tSource %s NLL: %0.3f' % (key.capitalize(),
+                        print('\t\tSource %s MAE: %0.3f' % (key.capitalize(),
                                                             losses['val_src_'+key][-1]))
-                        print('\t\tTarget %s NLL: %0.3f' % (key.capitalize(),
+                        print('\t\tTarget %s MAE: %0.3f' % (key.capitalize(),
                                                             losses['val_tgt_'+key][-1]))
                 if model.module.num_um_labels>0:
                     print('\t\tSource Unimodal Loss: %0.3f' % (losses['val_src_um'][-1]))
