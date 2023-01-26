@@ -255,10 +255,8 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     # Compute mean absolute error
     feat_loss = torch.mean(torch.abs(model_feats_src_norm[src_indices]-model_feats_tgt_norm))
     
-    losses_cp['val_src_um'].append(float(src_um_loss))
-    losses_cp['val_tgt_um'].append(float(tgt_um_loss))
+    # Store losses
     losses_cp['val_feats'].append(float(feat_loss))
-    
     for src_val, tgt_val, label_key in zip(src_mm_losses, tgt_mm_losses, model.module.multimodal_keys):
         losses_cp['val_src_'+label_key].append(float(src_val))
         losses_cp['val_tgt_'+label_key].append(float(tgt_val))
