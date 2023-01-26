@@ -214,27 +214,12 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     um_label_preds_src = torch.mean(um_label_preds_src, axis=0)
     um_label_preds_tgt = torch.mean(um_label_preds_tgt, axis=0)
     
-    # Compute negative log likelihood on multimodal label predictions
-    '''src_classes = model.module.multimodal_to_class(src_batch['multimodal labels'])
-    tgt_classes = model.module.multimodal_to_class(tgt_batch['multimodal labels'])
-    src_mm_losses = []
-    tgt_mm_losses = []
-    for i in range(model.module.num_mm_labels):
-        src_mm_losses.append(torch.nn.NLLLoss()(mm_label_preds_src[i], 
-                                                src_classes[i]))
-        if len(tgt_classes[i])==0:
-            tgt_mm_losses.append(torch.nan)
-        else:
-            tgt_mm_losses.append(torch.nn.NLLLoss()(mm_label_preds_tgt[i], 
-                                                    tgt_classes[i]))
-    '''
+    # Compute Mean Abs Error on multimodal label predictions
     src_mm_losses = []
     tgt_mm_losses = []
     mm_label_preds_src = model.module.class_to_label(mm_label_preds_src)
     mm_label_preds_tgt = model.module.class_to_label(mm_label_preds_tgt)
     for i in range(model.module.num_mm_labels):
-        print(i, mm_label_preds_src[0,i], 
-                                               src_batch['multimodal labels'][0,i])
         src_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_src[0,i], 
                                                src_batch['multimodal labels'][0,i]))
         tgt_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_tgt[0,i], 
