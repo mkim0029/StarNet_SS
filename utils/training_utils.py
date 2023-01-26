@@ -230,6 +230,7 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     tgt_um_losses = []
     um_label_preds_src = model.module.denormalize_unimodal(um_label_preds_src)
     um_label_preds_tgt = model.module.denormalize_unimodal(um_label_preds_tgt)
+    print(um_label_preds_src, tgt_batch['unimodal labels'])
     for i in range(model.module.num_um_labels):
         src_um_losses.append(torch.nn.L1Loss()(um_label_preds_src[0,i], 
                                                src_batch['unimodal labels'][0,i]))
