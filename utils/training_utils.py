@@ -231,6 +231,7 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     src_mm_losses = []
     tgt_mm_losses = []
     mm_label_preds_src = model.module.class_to_label(mm_label_preds_src)
+    print(mm_label_preds_src, src_batch['multimodal labels'])
     mm_label_preds_tgt = model.module.class_to_label(mm_label_preds_tgt)
     for i in range(model.module.num_mm_labels):
         src_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_src[i], 
