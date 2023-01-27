@@ -98,21 +98,21 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
         
     if model.module.num_mm_labels>0:
         # Compute average loss on stellar class labels
-        src_mm_loss = 0.  
+        src_mm_loss_tot = 0.  
         src_classes = model.module.multimodal_to_class(src_batch['multimodal labels'])
         for i in range(model.module.num_mm_labels):
-            src_mm_loss = src_mm_loss + source_mm_weights[i] * torch.nn.NLLLoss()(model_outputs_src['multimodal labels'][i], 
-                                                                                 src_classes[i])
-        src_mm_loss = src_mm_loss * 1/model.module.num_mm_labels
-        # Add to total loss
-        total_loss = total_loss + src_mm_loss
+            src_mm_loss = torch.nn.NLLLoss()(model_outputs_src['multimodal labels'][i], 
+                                             src_classes[i])
+            src_mm_loss_tot += 1/model.module.num_mm_labels * src_mm_loss
+            # Add to total loss
+            total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss
     
     if model.module.num_um_labels>0:
         src_um_loss = torch.nn.MSELoss()(model_outputs_src['unimodal labels'], 
                                             model.module.normalize_unimodal(src_batch['unimodal labels']))
         
         # Add to total loss
-        total_loss = total_loss + src_um_loss
+        total_loss = total_loss + source_um_weights*src_um_loss
     else:
         src_label_loss = 0.
         
