@@ -160,7 +160,7 @@ def parseArguments():
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 data_dir = os.path.join(cur_dir, '../data')
 model_dir = os.path.join(cur_dir, '../models/')
-training_script = os.path.join(cur_dir, '../train_starnet_ss3.py')
+training_script = os.path.join(cur_dir, '../train_starnet_ss.py')
 
 # Read command line arguments
 args = parseArguments()
