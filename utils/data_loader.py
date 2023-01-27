@@ -72,7 +72,7 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
                  continuum_normalize, divide_by_median, num_fluxes,
                  tasks, task_means, task_stds, calc_mutlimodal_vals=False,
                  median_thresh=0., std_min=0.01,
-                 apply_dropout=False, add_noise=False, max_noise_factor=0.2, 
+                 apply_dropout=False, add_noise=False, max_noise_factor=0.1, 
                  random_chunk=False, overlap=0.5, load_second_chunk=False):
         
         self.data_file = data_file
@@ -144,7 +144,7 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
 
         if self.add_noise:
             # Determine noise factor
-            noise_factor = np.random.uniform(0.01, self.max_noise_factor)
+            noise_factor = np.random.uniform(0.0001, self.max_noise_factor)
             spectrum = add_noise(spectrum, noise_factor=noise_factor)
             
         # Perform augmentations according to tasks

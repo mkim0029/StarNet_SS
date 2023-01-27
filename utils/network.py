@@ -317,7 +317,7 @@ class StarNet(torch.nn.Module):
             
     def all_parameters(self):
         '''Create an iterable list of all network parameters.'''
-        parameters = []
+        parameters = []        
         
         if self.d_model>0:
             parameters.append(self.encoder_inp_layer.parameters())

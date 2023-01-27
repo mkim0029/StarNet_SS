@@ -148,7 +148,7 @@ def plot_progress(losses, tasks, y_lims=[(0,1)], x_lim=None,
         
     plt.show()
     
-def plot_val_NLLs(losses, multimodal_keys, y_lims=[(0,1)], x_lim=None, 
+def plot_val_MAEs(losses, multimodal_keys, y_lims=[(0,1)], x_lim=None, 
                   fontsize=18, savename=None):
     
     fontsize_small=0.8*fontsize
@@ -185,7 +185,7 @@ def plot_val_NLLs(losses, multimodal_keys, y_lims=[(0,1)], x_lim=None,
         ax.plot(losses['batch_iters'], losses['val_tgt_%s' % key],
                  label=r'Target', c='r')
         ax.set_ylabel('NLL',fontsize=fontsize)
-        ax.set_ylim(*y_lims[0])
+        ax.set_ylim(*y_lims[i])
         ax.legend(fontsize=fontsize_small, ncol=2)
 
         if x_lim is not None:
