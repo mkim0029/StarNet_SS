@@ -44,7 +44,7 @@ for params in param_combos:
                 param_cmd += '-%s %s '% (k_, params[k])
     
     launch_cmd = ('python launch_starnet_ss.py starnet_ss_%i' % (model_num) +
-                  ' %s -co "%s"' % (param_cmd, param_cmd))
+                  ' %s -co " %s"' % (param_cmd, param_cmd))
     print(launch_cmd)
     
     model_num += 1
