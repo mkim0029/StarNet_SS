@@ -133,9 +133,8 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
         tgt_feature_loss = torch.nn.MSELoss()(model_outputs_tgt['feature map'], 
                                               model_outputs_tgt2['feature map'])
         
-        
-        total_loss = total_loss + torch.mean(source_feature_weight*src_feature_loss)
-        total_loss = total_loss + torch.mean(target_feature_weight*tgt_feature_loss)
+        total_loss = total_loss + source_feature_weight*src_feature_loss
+        total_loss = total_loss + target_feature_weight*tgt_feature_loss
         
     if len(model.module.tasks)>0:
         # Compute loss on task labels
@@ -186,39 +185,48 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     
     model.module.eval_mode()
     
-    # Produce feature map of source batch
+    # Produce feature map and label predictions from source batch
     model_feats_src = []
+    mm_label_preds_src = []
+    um_label_preds_src = []
     for i in range(0, src_batch['spectrum chunks'].size(1), batch_size):
-        model_feats_src.append(model(src_batch['spectrum chunks'][:,i:i+batch_size].squeeze(0),
-                                     src_batch['pixel_indx'][:,i:i+batch_size].squeeze(0),
-                                     norm_in=True, return_feats_only=True))
+        model_outputs = model(src_batch['spectrum chunks'][:,i:i+batch_size].squeeze(0),
+                              src_batch['pixel_indx'][:,i:i+batch_size].squeeze(0),
+                              norm_in=True, denorm_out=True, return_feats=True)
+        
+        model_feats_src.append(model_outputs['feature map'])
+        mm_label_preds_src.append(model_outputs['multimodal labels'])
+        um_label_preds_src.append(model_outputs['unimodal labels'])
     
-    # Produce feature map of target batch
+    # Produce feature map and label predictions from target batch
     model_feats_tgt = []
+    mm_label_preds_tgt = []
+    um_label_preds_tgt = []
     for i in range(0, tgt_batch['spectrum chunks'].size(1), batch_size):
-        model_feats_tgt.append(model(tgt_batch['spectrum chunks'][:,i:i+batch_size].squeeze(0),
-                                     tgt_batch['pixel_indx'][:,i:i+batch_size].squeeze(0),
-                                     norm_in=True, return_feats_only=True))
+        model_outputs = model(tgt_batch['spectrum chunks'][:,i:i+batch_size].squeeze(0),
+                              tgt_batch['pixel_indx'][:,i:i+batch_size].squeeze(0),
+                              norm_in=True, denorm_out=True, return_feats=True)
+        
+        model_feats_tgt.append(model_outputs['feature map'])
+        mm_label_preds_tgt.append(model_outputs['multimodal labels'])
+        um_label_preds_tgt.append(model_outputs['unimodal labels'])
+        
     model_feats_src = torch.cat(model_feats_src)
+    mm_label_preds_src = torch.cat(mm_label_preds_src)
+    um_label_preds_src = torch.cat(um_label_preds_src)
     model_feats_tgt = torch.cat(model_feats_tgt)
-    
-    # Predict labels
-    mm_label_preds_src = [classifier(model_feats_src) for classifier in model.module.label_classifiers]
-    mm_label_preds_tgt = [classifier(model_feats_tgt) for classifier in model.module.label_classifiers]
-    um_label_preds_src = model.module.unimodal_predictor(model_feats_src)
-    um_label_preds_tgt = model.module.unimodal_predictor(model_feats_tgt)
+    mm_label_preds_tgt = torch.cat(mm_label_preds_tgt)
+    um_label_preds_tgt = torch.cat(um_label_preds_tgt)
     
     # Compute average from all chunks
-    mm_label_preds_src = [torch.mean(preds, axis=0, keepdim=True) for preds in mm_label_preds_src]
-    mm_label_preds_tgt = [torch.mean(preds, axis=0, keepdim=True) for preds in mm_label_preds_tgt]
+    mm_label_preds_src = torch.mean(mm_label_preds_src, axis=0, keepdim=True)
+    mm_label_preds_tgt = torch.mean(mm_label_preds_tgt, axis=0, keepdim=True)
     um_label_preds_src = torch.mean(um_label_preds_src, axis=0, keepdim=True)
     um_label_preds_tgt = torch.mean(um_label_preds_tgt, axis=0, keepdim=True)
     
     # Compute Mean Abs Error on multimodal label predictions
     src_mm_losses = []
     tgt_mm_losses = []
-    mm_label_preds_src = model.module.class_to_label(mm_label_preds_src)
-    mm_label_preds_tgt = model.module.class_to_label(mm_label_preds_tgt)
     for i in range(model.module.num_mm_labels):
         src_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_src[0,i], 
                                                src_batch['multimodal labels'][0,i]))
@@ -228,8 +236,6 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     # Compute mean absolute error on unimodal label predictions
     src_um_losses = []
     tgt_um_losses = []
-    um_label_preds_src = model.module.denormalize_unimodal(um_label_preds_src)
-    um_label_preds_tgt = model.module.denormalize_unimodal(um_label_preds_tgt)
     for i in range(model.module.num_um_labels):
         src_um_losses.append(torch.nn.L1Loss()(um_label_preds_src[0,i], 
                                                src_batch['unimodal labels'][0,i]))
