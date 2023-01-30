@@ -1,12 +1,10 @@
-# Predict labels as classes
-
 import os
 # Directory of training script
 cur_dir = os.path.dirname(__file__)
 import sys
 sys.path.append(os.path.join(cur_dir,'utils'))
 from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch_to_device
-from training_utils import (parseArguments, WarmupCosineSchedule, run_iter, 
+from training_utils import (parseArguments, run_iter, 
                             str2bool, compare_val_sample)
 from network import StarNet, build_starnet, load_model_state
 
@@ -16,8 +14,6 @@ import numpy as np
 import h5py
 import torch
 from collections import defaultdict
-
-from torch.optim.swa_utils import AveragedModel, SWALR
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 num_gpus = torch.cuda.device_count()
@@ -76,8 +72,6 @@ with h5py.File(source_data_file, "r") as f:
 
 # Build network
 model = build_starnet(config, device, model_name, mutlimodal_vals)
-# SWA averaging of model
-swa_model = AveragedModel(model)
 
 # Construct optimizer
 optimizer = torch.optim.AdamW(model.all_parameters(), 
@@ -86,17 +80,18 @@ optimizer = torch.optim.AdamW(model.all_parameters(),
                              betas=(0.9, 0.999))
 
 # Learning rate scheduler
-lr_scheduler = WarmupCosineSchedule(optimizer, 
-                                    warmup_steps=int(0.001*total_batch_iters),
-                                    t_total=total_batch_iters)
+lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=int(total_batch_iters), 
+                                                   pct_start=0.05, anneal_strategy='cos', 
+                                                   cycle_momentum=True, base_momentum=0.85, 
+                                                   max_momentum=0.95, div_factor=25.0, 
+                                                   final_div_factor=10000.0, three_phase=False)
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, swa_model, losses, cur_iter = load_model_state(model, 
+model, losses, cur_iter = load_model_state(model, 
                                                       model_filename, 
                                                       optimizer, 
-                                                      lr_scheduler,
-                                                      swa_model)
+                                                      lr_scheduler)
 
 # Multi GPUs
 model = torch.nn.parallel.DataParallel(model, device_ids=list(range(num_gpus)), dim=0)
@@ -300,8 +295,6 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
             cur_iter += 1
 
             if time.time() - cp_start_time >= cp_time*60:
-                if cur_iter>int(0.9*total_batch_iters):
-                    swa_model.update_parameters(model)
                 
                 # Save periodically
                 print('Saving network...')
@@ -310,16 +303,12 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                             'optimizer' : optimizer.state_dict(),
                             'lr_scheduler' : lr_scheduler.state_dict(),
                             'model' : model.module.state_dict(),
-                            'swa_model' : swa_model.module.state_dict(),
                             'classifier models': [net.state_dict() for net in model.module.label_classifiers]},
                             model_filename)
 
                 cp_start_time = time.time()
 
             if cur_iter>(total_batch_iters):
-                
-                if cur_iter>int(0.9*total_batch_iters):
-                    swa_model.update_parameters(model)
                 
                 # Save after training
                 print('Saving network...')
@@ -328,7 +317,6 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                             'optimizer' : optimizer.state_dict(),
                             'lr_scheduler' : lr_scheduler.state_dict(),
                             'model' : model.module.state_dict(),
-                            'swa_model' : swa_model.module.state_dict(),
                             'classifier models': [net.state_dict() for net in model.module.label_classifiers]},
                             model_filename)
                 # Finish training

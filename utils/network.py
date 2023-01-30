@@ -453,8 +453,7 @@ def build_starnet(config, device, model_name, mutlimodal_vals):
         
     return model
 
-def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None,
-                     swa_model=None):
+def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
     
     # Check for pre-trained weights
     if os.path.exists(model_filename):
@@ -472,8 +471,6 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None,
             optimizer.load_state_dict(checkpoint['optimizer'])
         if lr_scheduler is not None:
             lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
-        if swa_model is not None:
-            swa_model.load_state_dict(checkpoint['swa_model'], strict=False)
 
         # Load model weights
         model.load_state_dict(checkpoint['model'])
