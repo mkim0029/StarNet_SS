@@ -22,7 +22,7 @@ def parseArguments():
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=6)
+                        type=int, default=4)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
@@ -73,22 +73,22 @@ def parseArguments():
                         type=float, default=0.001)
     parser.add_argument("-wd", "--weight_decay", 
                         help="Weight decay for AdamW optimizer.", 
-                        type=float, default=0.1)
+                        type=float, default=0.01)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
                         type=int, default=1000000)
     parser.add_argument("-smw", "--source_mm_weights", 
                         help="Loss weights for the multimodal NLL in the source domain.", 
-                        default=[1., 1., 1., 1.])
+                        default=[5.0, 5.0, 5.0, 5.0])
     parser.add_argument("-suw", "--source_um_weights", 
                         help="Loss weights for the unimodal MSE in the source domain.", 
-                        default=[1.])
+                        default=[0.1])
     parser.add_argument("-tfw", "--target_feature_weight", 
                         help="Loss weight for the feature comparison in the target domain.", 
-                        type=float, default=1.)
+                        type=float, default=0.01)
     parser.add_argument("-sfw", "--source_feature_weight", 
                         help="Loss weight for the feature comparison in the source domain.", 
-                        type=float, default=1.)
+                        type=float, default=0.01)
     parser.add_argument("-ttw", "--target_task_weights", 
                         help="Loss weights for each task in the target domain.", 
                         default=[0.1, 0.05, 0.05, 0.1])
