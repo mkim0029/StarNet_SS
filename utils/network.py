@@ -483,7 +483,4 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
         losses = defaultdict(list)
         cur_iter = 1
         
-    if swa_model is not None:
-        return model, swa_model, losses, cur_iter
-    else:
-        return model, losses, cur_iter
+    return model, losses, cur_iter
