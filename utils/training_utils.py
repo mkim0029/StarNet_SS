@@ -221,7 +221,7 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     for i in range(tgt_batch['pixel_indx'].size()[1]):
         src_indices.append(torch.where(src_batch['pixel_indx'][0,:,0]==tgt_batch['pixel_indx'][0,i,0])[0])
     src_indices = torch.cat(src_indices)
-    
+        
     # Compute mean absolute error
     feat_loss = torch.mean(torch.abs(model_feats_src_norm[src_indices]-model_feats_tgt_norm))
     

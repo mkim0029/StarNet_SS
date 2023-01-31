@@ -2,6 +2,11 @@ import numpy as np
 from uncertainties import unumpy
 import torch
 
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+from data_loader import batch_to_device
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.lines as lines
@@ -144,7 +149,8 @@ def plot_progress(losses, tasks, y_lims=[(0,1)], x_lim=None,
     plt.tight_layout()
     
     if savename is not None:
-        plt.savefig(savename, transparent=True, dpi=600, bbox_inches='tight', pad_inches=0.05)
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
+                    bbox_inches='tight', pad_inches=0.05)
         
     plt.show()
     
@@ -199,7 +205,8 @@ def plot_val_MAEs(losses, multimodal_keys, y_lims=[(0,1)], x_lim=None,
     plt.tight_layout()
     
     if savename is not None:
-        plt.savefig(savename, transparent=True, dpi=600, bbox_inches='tight', pad_inches=0.05)
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
+                    bbox_inches='tight', pad_inches=0.05)
         
     plt.show()
     
@@ -253,16 +260,19 @@ def plot_label_MAE(losses, label_keys, y_lims=[(0,1)], x_lim=None,
     plt.tight_layout()
     
     if savename is not None:
-        plt.savefig(savename, transparent=True, dpi=600, bbox_inches='tight', pad_inches=0.05)
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
+                    bbox_inches='tight', pad_inches=0.05)
         
     plt.show()
     
     
-def predict_labels(model, dataset, batchsize=16):
+def predict_labels(model, dataset, device, batchsize=16):
     
     print('Predicting on %i spectra...' % (len(dataset)))
-    
-    model.eval_mode()
+    try:
+        model.eval_mode()
+    except AttributeError:
+        model.module.eval_mode()
     
     tgt_stellar_labels = []
     pred_stellar_labels = []
@@ -273,6 +283,8 @@ def predict_labels(model, dataset, batchsize=16):
         # Loop through spectra in dataset
         for indx in range(len(dataset)):
             batch = dataset.__getitem__(indx)
+            
+            batch = batch_to_device(batch, device)
 
             # Collect target data
             if len(batch['task labels'])>0:
@@ -280,13 +292,18 @@ def predict_labels(model, dataset, batchsize=16):
             tgt_stellar_labels.append(np.concatenate((batch['multimodal labels'].data.numpy(),
                                                  batch['unimodal labels'].data.numpy())))
 
-            # Perform forward propagation
-            model_outputs = model(batch['spectrum chunks'].squeeze(0), 
-                                  batch['pixel_indx'].squeeze(0),
-                                  norm_in=True, denorm_out=True)
+            try:
+                # Perform forward propagation
+                model_outputs = model(batch['spectrum chunks'].squeeze(0), 
+                                      batch['pixel_indx'].squeeze(0),
+                                      norm_in=True, denorm_out=True)
+            except AttributeError:
+                model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
+                                      batch['pixel_indx'].squeeze(0),
+                                      norm_in=True, denorm_out=True)
 
-            if len(model.tasks)>0:
-                pred_task_labels.append(model_outputs['task labels'].data.numpy())
+            #if len(model.tasks)>0:
+            #    pred_task_labels.append(model_outputs['task labels'].data.numpy())
 
             sl = np.hstack((model_outputs['multimodal labels'].data.numpy(), 
                             model_outputs['unimodal labels'].data.numpy()))
@@ -300,7 +317,7 @@ def predict_labels(model, dataset, batchsize=16):
             #pred_task_labels = np.hstack(pred_task_labels).T 
         
     return (tgt_stellar_labels, pred_stellar_labels, 
-            sigma_stellar_labels, tgt_task_labels, pred_task_labels)
+            sigma_stellar_labels)
 
 def predict_ensemble(models, dataset, channel_starts = [0, 11880, 25880], batchsize=16):
     
@@ -593,7 +610,7 @@ def plot_resid_boxplot(label_keys, tgt_stellar_labels, pred_stellar_labels,
         cbar.ax.set_yticklabels(['0', '$>\sigma_{max}$'], size=4*len(label_keys))
         
     if savename is not None:
-        plt.savefig(savename, facecolor='white', transparent=False, dpi=200,
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
                     bbox_inches='tight', pad_inches=0.05)
     
     plt.show()
