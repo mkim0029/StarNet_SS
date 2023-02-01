@@ -280,8 +280,9 @@ with open(script_fn, 'w') as f:
                                                                    args.model_name,
                                                                    args.verbose_iters, 
                                                                    args.cp_time))
+    f.write('\n# Run testing\n')
     f.write('python %s %s -dd $SLURM_TMPDIR/\n' % (testing_script,
-                                                   args.cp_time))
+                                                   args.model_name))
 
 # Compute-canada goodies command
 cmd = 'python %s ' % (os.path.join(cur_dir, 'queue_cc.py'))
