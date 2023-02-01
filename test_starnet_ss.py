@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.join(cur_dir,'utils'))
 from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch_to_device
 from training_utils import (parseArguments, str2bool)
-from network2 import StarNet, build_starnet, load_model_state
+from network import StarNet, build_starnet, load_model_state
 from analysis_fns import (plot_progress, plot_val_MAEs, predict_labels, 
                           predict_ensemble, plot_resid, plot_resid_boxplot,
                            plot_one_to_one, plot_wave_sigma)

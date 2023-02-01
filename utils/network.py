@@ -1,11 +1,14 @@
-import os
 import torch
+from torch import nn
+from torch import Tensor
+from typing import List
+from torchvision.ops import StochasticDepth
+
+import os
 from training_utils import str2bool
 from itertools import chain
 from collections import defaultdict
 import math
-
-# Positional encoding for CNN
 
 def compute_out_size(in_size, mod, device):
     '''
@@ -15,79 +18,6 @@ def compute_out_size(in_size, mod, device):
     f = mod.forward(torch.autograd.Variable(torch.Tensor(1, *in_size)).to(device))
     return f.size()[1:]
 
-class StarNet_convs(torch.nn.Module):
-    '''
-    Create a sequential model of 1D Convolutional layers.
-    '''
-    def __init__(self, in_channels=1, num_filters=[4,16], strides=[1,1], 
-                 filter_lengths=[8,8], pool_length=4, input_dropout=0.0):
-        super().__init__()
-        
-        
-        layers = list()
-
-        # Use dropout as the first layer
-        if input_dropout>0:
-            layers.append(torch.nn.Dropout(input_dropout))
-        
-        # Convolutional layers
-        for i in range(len(num_filters)):
-            layers.append(torch.nn.Conv1d(in_channels, num_filters[i], 
-                                          filter_lengths[i], strides[i]))
-            layers.append(torch.nn.ReLU())
-            in_channels=num_filters[i]
-
-        # Max pooling layer
-        if pool_length>0:
-            layers.append(torch.nn.MaxPool1d(pool_length, pool_length))
-            
-        self.conv_model = torch.nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.conv_model(x)
-    
-class StarNet_fcs(torch.nn.Module):
-    '''
-    Create a sequential model of Fully Connected layers.
-    '''
-    def __init__(self, in_features, num_hidden=[256,128]):
-        super().__init__()
-        
-        # Fully connected layers
-        layers = list()
-        if len(num_hidden)>0:
-            for i in range(len(num_hidden)):
-                layers.append(torch.nn.Linear(in_features, num_hidden[i]))
-                layers.append(torch.nn.ReLU())
-                in_features = num_hidden[i]
-        
-        self.fc_model = torch.nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.fc_model(x)
-    
-class StarNet_head(torch.nn.Module):
-    '''
-    Create a Linear output layer.
-    '''
-    def __init__(self, in_features, out_features=6, 
-                 softplus=False, logsoftmax=False):
-        super().__init__()
-        
-        # Fully connected layer
-        layers = list()
-        layers.append(torch.nn.Linear(in_features, out_features))
-        
-        if softplus:
-            layers.append(torch.nn.Softplus())
-        if logsoftmax:
-            layers.append(torch.nn.LogSoftmax(dim=1))
-        
-        self.fc_model = torch.nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.fc_model(x)
-    
 class PositionalEncoding(torch.nn.Module):
     """
     Adjusted from https://pytorch.org/tutorials/beginner/transformer_tutorial.html
@@ -117,6 +47,171 @@ class PositionalEncoding(torch.nn.Module):
         
         x = x + torch.concat([self.pe[:, i:i+x.size()[1], :] for i in start_indx])
         return self.dropout(x)
+
+# Adapted from https://github.com/FrancescoSaverioZuppichini/ConvNext
+
+class LayerScaler(nn.Module):
+    def __init__(self, init_value: float, dimensions: int):
+        super().__init__()
+        self.gamma = nn.Parameter(init_value * torch.ones((dimensions)), 
+                                    requires_grad=True)
+        
+    def forward(self, x):
+        return self.gamma[None,...,None] * x
+
+class BottleNeckBlock(nn.Module):
+    '''A residual BottleNeck block.'''
+    
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        expansion: int = 4,
+        drop_p: float = .0,
+        layer_scaler_init_value: float = 1e-6,
+    ):
+        super().__init__()
+        expanded_features = out_features * expansion
+        self.block = nn.Sequential(
+            # narrow -> wide (with depth-wise and bigger kernel)
+            nn.Conv1d(in_features, in_features, kernel_size=7, 
+                      padding=3, bias=False, groups=in_features),
+            # GroupNorm with num_groups=1 is the same as LayerNorm but works for 2D data
+            nn.GroupNorm(num_groups=1, num_channels=in_features),
+            # wide -> wide 
+            nn.Conv1d(in_features, expanded_features, kernel_size=1),
+            nn.GELU(),
+            # wide -> narrow
+            nn.Conv1d(expanded_features, out_features, kernel_size=1),
+        )
+        self.layer_scaler = LayerScaler(layer_scaler_init_value, out_features)
+        self.drop_path = StochasticDepth(drop_p, mode="batch")
+        
+    def forward(self, x: Tensor) -> Tensor:
+        res = x
+        x = self.block(x)
+        x = self.layer_scaler(x)
+        x = self.drop_path(x)
+        x += res
+        return x
+    
+class ConvNexStage(nn.Sequential):
+    '''
+    Stage: a collection of blocks. 
+    Each stage usually downsamples the input by a factor of 2.
+    This is done in the first block of the stage.
+    '''
+    def __init__(
+        self, in_features: int, out_features: int, depth: int, **kwargs
+    ):
+        super().__init__(
+            # add the downsampler
+            nn.Sequential(
+                nn.GroupNorm(num_groups=1, num_channels=in_features),
+                nn.Conv1d(in_features, out_features, kernel_size=2, stride=2)
+            ),
+            *[
+                BottleNeckBlock(out_features, out_features, **kwargs)
+                for _ in range(depth)
+            ],
+        )
+        
+class ConvNextStem(nn.Sequential):
+    def __init__(self, in_features: int, out_features: int):
+        super().__init__(
+            nn.Conv1d(in_features, out_features, kernel_size=15, stride=4),
+            #nn.BatchNorm1d(out_features)
+            nn.GroupNorm(num_groups=1, num_channels=out_features)
+        )
+        
+class ConvNextEncoder(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        stem_features: int,
+        depths: List[int],
+        widths: List[int],
+        drop_p: float = .0,
+    ):
+        super().__init__()
+        self.stem = ConvNextStem(in_channels, stem_features)
+
+        in_out_widths = list(zip(widths, widths[1:]))
+        # create drop paths probabilities (one for each stage)
+        drop_probs = [x.item() for x in torch.linspace(0, drop_p, sum(depths))] 
+        
+        self.stages = nn.ModuleList(
+            [
+                ConvNexStage(stem_features, widths[0], depths[0], drop_p=drop_probs[0]),
+                *[
+                    ConvNexStage(in_features, out_features, depth, drop_p=drop_p)
+                    for (in_features, out_features), depth, drop_p in zip(
+                        in_out_widths, depths[1:], drop_probs[1:]
+                    )
+                ],
+            ]
+        )
+        
+
+    def forward(self, x):
+        x = self.stem(x)
+        for stage in self.stages:
+            x = stage(x)
+        return x
+    
+class StarNet_convs(torch.nn.Module):
+    '''
+    Create a sequential model of 1D Convolutional layers.
+    '''
+    def __init__(self, in_channels=1, num_filters=[4,16], strides=[1,1], 
+                 filter_lengths=[8,8], pool_length=4, input_dropout=0.0):
+        super().__init__()
+        
+        
+        layers = list()
+
+        # Use dropout as the first layer
+        if input_dropout>0:
+            layers.append(torch.nn.Dropout(input_dropout))
+        
+        # Convolutional layers
+        for i in range(len(num_filters)):
+            layers.append(torch.nn.Conv1d(in_channels, num_filters[i], 
+                                          filter_lengths[i], strides[i]))
+            layers.append(torch.nn.ReLU())
+            in_channels=num_filters[i]
+
+        # Avg pooling layer
+        if pool_length>0:
+            layers.append(torch.nn.AdaptiveAvgPool1d(pool_length))
+            
+        self.conv_model = torch.nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.conv_model(x)
+        
+class StarNet_head(torch.nn.Module):
+    '''
+    Create a Linear output layer.
+    '''
+    def __init__(self, in_features, out_features=6, 
+                 softplus=False, logsoftmax=False):
+        super().__init__()
+        
+        # Fully connected layer
+        layers = list()
+        layers.append(torch.nn.LayerNorm(in_features))
+        layers.append(torch.nn.Linear(in_features, out_features))
+        
+        if softplus:
+            layers.append(torch.nn.Softplus())
+        if logsoftmax:
+            layers.append(torch.nn.LogSoftmax(dim=1))
+        
+        self.fc_model = torch.nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.fc_model(x)
     
 class StarNet(torch.nn.Module):
     def __init__(self, architecture_config, multimodal_keys,
@@ -130,9 +225,9 @@ class StarNet(torch.nn.Module):
         self.num_fluxes = int(architecture_config['num_fluxes'])
         spectrum_size = int(architecture_config['spectrum_size'])
         self.d_model = int(architecture_config['encoder_dim'])
-        num_filters_sh = eval(architecture_config['conv_filts_sh'])
-        filter_lengths_sh = eval(architecture_config['filter_lengths_sh'])
-        conv_strides_sh = eval(architecture_config['conv_strides_sh'])
+        conv_widths_sh = eval(architecture_config['conv_widths_sh'])
+        conv_depths_sh = eval(architecture_config['conv_depths_sh'])
+        stem_features_sh = int(architecture_config['stem_features_sh'])
         num_filters_sp = eval(architecture_config['conv_filts_sp'])
         filter_lengths_sp = eval(architecture_config['filter_lengths_sp'])
         conv_strides_sp = eval(architecture_config['conv_strides_sp'])
@@ -150,7 +245,7 @@ class StarNet(torch.nn.Module):
         self.task_stds = torch.tensor(eval(architecture_config['task_stds'])).to(device)
         self.device = device
           
-        self.use_split_convs = len(num_filters_sh)>0   
+        self.use_split_convs = len(num_filters_sp)>0   
         
         in_channels = 1
         if self.d_model>0:
@@ -167,30 +262,34 @@ class StarNet(torch.nn.Module):
             in_channels = self.d_model
 
         # Shared convolutional and pooling layers
-        self.feature_encoder_sh = StarNet_convs(in_channels=in_channels,
+        '''self.feature_encoder_sh = StarNet_convs(in_channels=in_channels,
                                              num_filters=num_filters_sh,
                                              strides=conv_strides_sh,
                                              filter_lengths=filter_lengths_sh, 
-                                             pool_length=pool_length).to(device)
+                                             pool_length=pool_length).to(device)'''
+        self.feature_encoder_sh = ConvNextEncoder(in_channels=in_channels, 
+                                                  stem_features=stem_features_sh, 
+                                                  depths=conv_depths_sh, 
+                                                  widths=conv_widths_sh).to(device)
         
         # Split convolutional layers
         if self.use_split_convs:
-            self.feature_encoder_labels = StarNet_convs(in_channels=num_filters_sh[-1],
+            self.feature_encoder_labels = StarNet_convs(in_channels=conv_widths_sh[-1],
                                                  num_filters=num_filters_sp,
                                                  strides=conv_strides_sp,
                                                  filter_lengths=filter_lengths_sp, 
-                                                 pool_length=0).to(device)
+                                                 pool_length=pool_length).to(device)
             if len(self.tasks)>0:
-                self.feature_encoder_tasks = StarNet_convs(in_channels=num_filters_sh[-1],
+                self.feature_encoder_tasks = StarNet_convs(in_channels=conv_widths_sh[-1],
                                                  num_filters=num_filters_sp,
                                                  strides=conv_strides_sp,
                                                  filter_lengths=filter_lengths_sp, 
-                                                 pool_length=0).to(device)
+                                                 pool_length=pool_length).to(device)
 
         # Determine shape after convolutions have been applied
         feat_map_shape = compute_out_size((in_channels, self.num_fluxes), 
-                                             self.feature_encoder_sh, device)
-        if len(num_filters_sh)>0:
+                                          self.feature_encoder_sh, device)
+        if self.use_split_convs:
             feat_map_shape = compute_out_size((feat_map_shape[0], feat_map_shape[1]), 
                                              self.feature_encoder_labels, device)
         print('Feature map shape: ', feat_map_shape)

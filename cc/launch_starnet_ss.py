@@ -16,22 +16,22 @@ def parseArguments():
     # Job params
     parser.add_argument("-v", "--verbose_iters", 
                         help="Number of batch iters after which to evaluate val set and display output.", 
-                        type=int, default=10000)
+                        type=int, default=5000)
     parser.add_argument("-ct", "--cp_time", 
                         help="Number of minutes after which to save a checkpoint.", 
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=4)
+                        type=int, default=6)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
     parser.add_argument("-mem", "--memory", 
                         help="Memory per job in GB.", 
-                        type=int, default=20)
+                        type=int, default=16)
     parser.add_argument("-ncp", "--num_cpu", 
                         help="Number of CPU cores per job.", 
-                        type=int, default=12)
+                        type=int, default=11)
     
     # Config params
     parser.add_argument("-sfn", "--source_data_file", 
@@ -76,7 +76,7 @@ def parseArguments():
                         type=float, default=0.01)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
-                        type=int, default=1000000)
+                        type=int, default=500000)
     parser.add_argument("-smw", "--source_mm_weights", 
                         help="Loss weights for the multimodal NLL in the source domain.", 
                         default=[5.0, 5.0, 5.0, 5.0])
@@ -85,10 +85,10 @@ def parseArguments():
                         default=[0.1])
     parser.add_argument("-tfw", "--target_feature_weight", 
                         help="Loss weight for the feature comparison in the target domain.", 
-                        type=float, default=0.01)
+                        type=float, default=1.)
     parser.add_argument("-sfw", "--source_feature_weight", 
                         help="Loss weight for the feature comparison in the source domain.", 
-                        type=float, default=0.01)
+                        type=float, default=1.)
     parser.add_argument("-ttw", "--target_task_weights", 
                         help="Loss weights for each task in the target domain.", 
                         default=[0.1, 0.05, 0.05, 0.1])
@@ -103,29 +103,29 @@ def parseArguments():
                         help="Number of flux values in spectrum.", 
                         type=int, default=43480)
     parser.add_argument("-ed", "--encoder_dim", 
-                        help="Dimension of positional encoder (0 to not use positional encoder).", 
+                        help="Dimension of positional encoder (use 0 to not use positional encoder).", 
                         type=int, default=18)
-    parser.add_argument("-cfsh", "--conv_filts_sh", 
-                        help="Number of filters in conv layers (for cnn).", 
-                        default=[128, 128, 128, 128])
-    parser.add_argument("-flsh", "--filter_lengths_sh", 
-                        help="Length of filters in conv layers (for cnn).", 
-                        default=[15, 15, 7, 7])
-    parser.add_argument("-cssh", "--conv_strides_sh", 
-                        help="Stride length of filters in conv layers (for cnn).", 
-                        default=[4, 2, 2, 2])
+    parser.add_argument("-cwsh", "--conv_widths_sh", 
+                        help="Number of to use in each stage of the ConvNext model.", 
+                        default=[32, 64, 128, 128])
+    parser.add_argument("-cdsh", "--conv_depths_sh", 
+                        help="Depth of each stage of the ConvNext model.", 
+                        default=[3, 4, 6, 4])
+    parser.add_argument("-sfsh", "--stem_features_sh", 
+                        help="Number of features to use in initial stem layer of the ConvNext model.", 
+                        type=int, default=32)
     parser.add_argument("-cf", "--conv_filts_sp", 
-                        help="Number of filters in conv layers (for cnn).", 
+                        help="Number of filters in conv layers.", 
                         default=[32])
     parser.add_argument("-fl", "--filter_lengths_sp", 
-                        help="Length of filters in conv layers (for cnn).", 
+                        help="Length of filters in conv layers.", 
                         default=[7])
     parser.add_argument("-cs", "--conv_strides_sp", 
-                        help="Stride length of filters in conv layers (for cnn).", 
+                        help="Stride length of filters in conv layers.", 
                         default=[2])
     parser.add_argument("-pl", "--pool_length", 
-                        help="Length of pooling filter (for cnn).", 
-                        default=0)
+                        help="Output size of pooling layer (use 0 for no pooling).", 
+                        default=1)
     parser.add_argument("-umm", "--unimodal_means", 
                         help="Mean value of each label used for normalization.", 
                         default=[0])
@@ -161,6 +161,7 @@ cur_dir = os.path.dirname(os.path.realpath(__file__))
 data_dir = os.path.join(cur_dir, '../data')
 model_dir = os.path.join(cur_dir, '../models/')
 training_script = os.path.join(cur_dir, '../train_starnet_ss.py')
+testing_script = os.path.join(cur_dir, '../test_starnet_ss.py')
 
 # Read command line arguments
 args = parseArguments()
@@ -212,9 +213,9 @@ elif user_input=='o':
     config['ARCHITECTURE'] = {'spectrum_size': args.spectrum_size,
                               'num_fluxes': args.num_fluxes,
                               'encoder_dim': args.encoder_dim,
-                              'conv_filts_sh': args.conv_filts_sh,
-                              'conv_strides_sh': args.conv_strides_sh,
-                              'filter_lengths_sh': args.filter_lengths_sh,
+                              'conv_widths_sh': args.conv_widths_sh,
+                              'conv_depths_sh': args.conv_depths_sh,
+                              'stem_features_sh': args.stem_features_sh,
                               'conv_filts_sp': args.conv_filts_sp,
                               'conv_strides_sp': args.conv_strides_sp,
                               'filter_lengths_sp': args.filter_lengths_sp,
@@ -279,6 +280,8 @@ with open(script_fn, 'w') as f:
                                                                    args.model_name,
                                                                    args.verbose_iters, 
                                                                    args.cp_time))
+    f.write('python %s %s -dd $SLURM_TMPDIR/\n' % (testing_script,
+                                                   args.cp_time))
 
 # Compute-canada goodies command
 cmd = 'python %s ' % (os.path.join(cur_dir, 'queue_cc.py'))

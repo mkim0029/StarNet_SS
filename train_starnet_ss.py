@@ -1,3 +1,5 @@
+#From 5, minor changes to head architecture
+
 import os
 # Directory of training script
 cur_dir = os.path.dirname(__file__)
