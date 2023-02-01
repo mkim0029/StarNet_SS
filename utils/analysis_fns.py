@@ -288,9 +288,9 @@ def predict_labels(model, dataset, device, batchsize=16):
 
             # Collect target data
             if len(batch['task labels'])>0:
-                tgt_task_labels.append(batch['task labels'].data.numpy())
-            tgt_stellar_labels.append(np.concatenate((batch['multimodal labels'].data.numpy(),
-                                                 batch['unimodal labels'].data.numpy())))
+                tgt_task_labels.append(batch['task labels'].data.cpu()numpy())
+            tgt_stellar_labels.append(np.concatenate((batch['multimodal labels'].data.cpu().numpy(),
+                                                 batch['unimodal labels'].data.cpu().numpy())))
 
             try:
                 # Perform forward propagation
@@ -303,10 +303,10 @@ def predict_labels(model, dataset, device, batchsize=16):
                                       norm_in=True, denorm_out=True)
 
             #if len(model.tasks)>0:
-            #    pred_task_labels.append(model_outputs['task labels'].data.numpy())
+            #    pred_task_labels.append(model_outputs['task labels'].data.cpu().numpy())
 
-            sl = np.hstack((model_outputs['multimodal labels'].data.numpy(), 
-                            model_outputs['unimodal labels'].data.numpy()))
+            sl = np.hstack((model_outputs['multimodal labels'].data.cpu().numpy(), 
+                            model_outputs['unimodal labels'].data.cpu().numpy()))
             # Take average from all spectrum chunk predictions
             pred_stellar_labels.append(np.mean(sl, axis=0))
 
