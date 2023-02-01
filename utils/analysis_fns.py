@@ -288,7 +288,7 @@ def predict_labels(model, dataset, device, batchsize=16):
 
             # Collect target data
             if len(batch['task labels'])>0:
-                tgt_task_labels.append(batch['task labels'].data.cpu()numpy())
+                tgt_task_labels.append(batch['task labels'].data.cpu().numpy())
             tgt_stellar_labels.append(np.concatenate((batch['multimodal labels'].data.cpu().numpy(),
                                                  batch['unimodal labels'].data.cpu().numpy())))
 
