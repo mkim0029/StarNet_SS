@@ -58,6 +58,9 @@ def parseArguments():
     parser.add_argument("-an", "--add_noise_to_source", 
                         help="Whether or not to add noise to source spectra during training.", 
                         type=str, default='True')
+    parser.add_argument("-mnf", "--max_noise_factor", 
+                        help="Maximum fraction of continuum to set random noise to.", 
+                        type=float, default=0.1)
     parser.add_argument("-rc", "--random_chunk", 
                         help="Whether or not to choose random parts of each spectrum.", 
                         type=str, default='True')
@@ -196,6 +199,7 @@ elif user_input=='o':
                       'continuum_normalize': args.continuum_normalize,
                       'divide_by_median': args.divide_by_median,
                       'add_noise_to_source': args.add_noise_to_source,
+                      'max_noise_factor': args.max_noise_factor,
                       'random_chunk': args.random_chunk,
                       'overlap': args.overlap}
 

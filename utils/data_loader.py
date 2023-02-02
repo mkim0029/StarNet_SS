@@ -221,7 +221,6 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
         # Apply augmentations and create array of task labels
         spectrum_chunk, task_labels = self.apply_augmentations(spectrum_chunk, centre_wave)
 
-
         if self.load_second_chunk:
             # Select random chunk in the spectrum
             spectrum_chunk2, centre_wave, chunk_indx2 = self.select_random_chunk(spectrum, 

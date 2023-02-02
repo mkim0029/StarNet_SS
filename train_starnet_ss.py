@@ -54,6 +54,7 @@ divide_by_median = str2bool(config['DATA']['divide_by_median'])
 add_noise_to_source = str2bool(config['DATA']['add_noise_to_source'])
 random_chunk = str2bool(config['DATA']['random_chunk'])
 overlap = float(config['DATA']['overlap'])
+max_noise_factor = float(config['DATA']['max_noise_factor'])
 batch_size = int(config['TRAINING']['batchsize'])
 lr = float(config['TRAINING']['lr'])
 weight_decay = float(config['TRAINING']['weight_decay'])
@@ -116,6 +117,7 @@ source_train_dataset = WeaveSpectraDataset(source_data_file,
                                            median_thresh=0., std_min=0.01,
                                            apply_dropout=True,
                                            add_noise=add_noise_to_source,
+                                           max_noise_factor=max_noise_factor,
                                            random_chunk=random_chunk,
                                            overlap=overlap,
                                            load_second_chunk=load_second_chunk)
