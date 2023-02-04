@@ -160,7 +160,8 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
         
         model_feats_src.append(model_outputs['feature map'])
         mm_label_preds_src.append(model_outputs['multimodal labels'])
-        um_label_preds_src.append(model_outputs['unimodal labels'])
+        if model.module.num_um_labels>0:
+            um_label_preds_src.append(model_outputs['unimodal labels'])
     
     # Produce feature map and label predictions from target batch
     model_feats_tgt = []
@@ -173,20 +174,24 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
         
         model_feats_tgt.append(model_outputs['feature map'])
         mm_label_preds_tgt.append(model_outputs['multimodal labels'])
-        um_label_preds_tgt.append(model_outputs['unimodal labels'])
+        if model.module.num_um_labels>0:
+            um_label_preds_tgt.append(model_outputs['unimodal labels'])
         
     model_feats_src = torch.cat(model_feats_src)
     mm_label_preds_src = torch.cat(mm_label_preds_src)
-    um_label_preds_src = torch.cat(um_label_preds_src)
     model_feats_tgt = torch.cat(model_feats_tgt)
     mm_label_preds_tgt = torch.cat(mm_label_preds_tgt)
-    um_label_preds_tgt = torch.cat(um_label_preds_tgt)
+    if model.module.num_um_labels>0:
+        um_label_preds_src = torch.cat(um_label_preds_src)
+        um_label_preds_tgt = torch.cat(um_label_preds_tgt)
+        
     
     # Compute average from all chunks
     mm_label_preds_src = torch.mean(mm_label_preds_src, axis=0, keepdim=True)
     mm_label_preds_tgt = torch.mean(mm_label_preds_tgt, axis=0, keepdim=True)
-    um_label_preds_src = torch.mean(um_label_preds_src, axis=0, keepdim=True)
-    um_label_preds_tgt = torch.mean(um_label_preds_tgt, axis=0, keepdim=True)
+    if model.module.num_um_labels>0:
+        um_label_preds_src = torch.mean(um_label_preds_src, axis=0, keepdim=True)
+        um_label_preds_tgt = torch.mean(um_label_preds_tgt, axis=0, keepdim=True)
     
     # Compute Mean Abs Error on multimodal label predictions
     src_mm_losses = []
