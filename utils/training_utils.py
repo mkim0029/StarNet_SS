@@ -69,14 +69,16 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
                                              src_classes[i])
             src_mm_loss_tot += 1/model.module.num_mm_labels * src_mm_loss
             # Add to total loss
-            total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss
+            if source_mm_weights[i]>0:
+                total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss
     
     if model.module.num_um_labels>0:
         src_um_loss = torch.nn.MSELoss()(model_outputs_src['unimodal labels'], 
                                             model.module.normalize_unimodal(src_batch['unimodal labels']))
         
         # Add to total loss
-        total_loss = total_loss + source_um_weights*src_um_loss
+        if source_um_weights>0:
+            total_loss = total_loss + source_um_weights*src_um_loss
     else:
         src_label_loss = 0.
         
@@ -97,8 +99,10 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
         tgt_feature_loss = torch.nn.MSELoss()(model_outputs_tgt['feature map'], 
                                               model_outputs_tgt2['feature map'])
         
-        total_loss = total_loss + source_feature_weight*src_feature_loss
-        total_loss = total_loss + target_feature_weight*tgt_feature_loss
+        if source_feature_weight>0:
+            total_loss = total_loss + source_feature_weight*src_feature_loss
+        if target_feature_weight>0:
+            total_loss = total_loss + target_feature_weight*tgt_feature_loss
         
     if len(model.module.tasks)>0:
         # Compute loss on task labels
@@ -107,8 +111,11 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
         tgt_task_losses = task_loss_fn(model.module.normalize_tasks(tgt_batch['task labels']), 
                                        model_outputs_tgt['task labels'])
         # Add to total loss
-        total_loss = total_loss + torch.mean(src_task_losses*source_task_weights)
-        total_loss = total_loss + torch.mean(tgt_task_losses*target_task_weights)
+        for i in range(len(src_task_losses)):
+            if source_task_weights[i]>0:
+                total_loss = total_loss + 1/len(src_task_losses)*src_task_losses[i]*source_task_weights[i]
+            if target_task_weights[i]>0:
+                total_loss = total_loss + 1/len(tgt_task_losses)*tgt_task_losses[i]*target_task_weights[i]
         
     if mode=='train':        
         # Update the gradients
