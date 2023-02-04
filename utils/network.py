@@ -117,9 +117,10 @@ class ConvNexStage(nn.Sequential):
         )
         
 class ConvNextStem(nn.Sequential):
-    def __init__(self, in_features: int, out_features: int):
+    def __init__(self, in_features: int, out_features: int,
+                 kernel_size: int, stride: int):
         super().__init__(
-            nn.Conv1d(in_features, out_features, kernel_size=15, stride=4),
+            nn.Conv1d(in_features, out_features, kernel_size=kernel_size, stride=stride),
             #nn.BatchNorm1d(out_features)
             nn.GroupNorm(num_groups=1, num_channels=out_features)
         )
@@ -129,12 +130,14 @@ class ConvNextEncoder(nn.Module):
         self,
         in_channels: int,
         stem_features: int,
+        stem_filt_size: int,
+        stem_stride: int,
         depths: List[int],
         widths: List[int],
         drop_p: float = .0,
     ):
         super().__init__()
-        self.stem = ConvNextStem(in_channels, stem_features)
+        self.stem = ConvNextStem(in_channels, stem_features, stem_filt_size, stem_stride)
 
         in_out_widths = list(zip(widths, widths[1:]))
         # create drop paths probabilities (one for each stage)
@@ -228,6 +231,8 @@ class StarNet(torch.nn.Module):
         conv_widths_sh = eval(architecture_config['conv_widths_sh'])
         conv_depths_sh = eval(architecture_config['conv_depths_sh'])
         stem_features_sh = int(architecture_config['stem_features_sh'])
+        stem_filt_size = int(architecture_config['stem_filt_size'])
+        stem_stride = int(architecture_config['stem_stride'])
         num_filters_sp = eval(architecture_config['conv_filts_sp'])
         filter_lengths_sp = eval(architecture_config['filter_lengths_sp'])
         conv_strides_sp = eval(architecture_config['conv_strides_sp'])
@@ -269,6 +274,8 @@ class StarNet(torch.nn.Module):
                                              pool_length=pool_length).to(device)'''
         self.feature_encoder_sh = ConvNextEncoder(in_channels=in_channels, 
                                                   stem_features=stem_features_sh, 
+                                                  stem_filt_size=stem_filt_size, 
+                                                  stem_stride=stem_stride, 
                                                   depths=conv_depths_sh, 
                                                   widths=conv_widths_sh).to(device)
         

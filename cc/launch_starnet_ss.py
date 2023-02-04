@@ -55,6 +55,9 @@ def parseArguments():
     parser.add_argument("-dbm", "--divide_by_median", 
                         help="Whether or not to divide each spectrum by its median value.", 
                         type=str, default='False')
+    parser.add_argument("-ado", "--apply_dropout", 
+                        help="Whether or not to dropout chunks of flux value in the source spectra during training.", 
+                        type=str, default='True')
     parser.add_argument("-an", "--add_noise_to_source", 
                         help="Whether or not to add noise to source spectra during training.", 
                         type=str, default='True')
@@ -67,6 +70,12 @@ def parseArguments():
     parser.add_argument("-ov", "--overlap", 
                         help="The overlap between neighbouring chunks.", 
                         type=float, default=0.5)
+    parser.add_argument("-ci", "--channel_indices", 
+                        help="Leftmost pixel indices of each channel in the spectrum.", 
+                        default=[0, 11880, 25880])
+    parser.add_argument("-ssm", "--std_min", 
+                        help="Threshold for standard deviation of a channel in the spectrum (if lower, that channel will not be used).", 
+                        type=float, default=0.01)
     
     parser.add_argument("-bs", "--batchsize", 
                         help="Training batchsize.", 
@@ -117,6 +126,12 @@ def parseArguments():
     parser.add_argument("-sfsh", "--stem_features_sh", 
                         help="Number of features to use in initial stem layer of the ConvNext model.", 
                         type=int, default=32)
+    parser.add_argument("-sks", "--stem_filt_size", 
+                        help="Kernel size of the stem layer of the ConvNext model.", 
+                        type=int, default=15)
+    parser.add_argument("-ssl", "--stem_stride", 
+                        help="Stride lengh of the stem layer of the ConvNext model.", 
+                        type=int, default=4)
     parser.add_argument("-cf", "--conv_filts_sp", 
                         help="Number of filters in conv layers.", 
                         default=[32])
@@ -198,10 +213,13 @@ elif user_input=='o':
                       'unimodal_keys': args.unimodal_keys,
                       'continuum_normalize': args.continuum_normalize,
                       'divide_by_median': args.divide_by_median,
+                      'apply_dropout': args.apply_dropout,
                       'add_noise_to_source': args.add_noise_to_source,
                       'max_noise_factor': args.max_noise_factor,
                       'random_chunk': args.random_chunk,
-                      'overlap': args.overlap}
+                      'overlap': args.overlap,
+                      'channel_indices': args.channel_indices,
+                      'std_min': args.std_min}
 
     config['TRAINING'] = {'batchsize': args.batchsize,
                           'lr': args.lr,
@@ -220,6 +238,8 @@ elif user_input=='o':
                               'conv_widths_sh': args.conv_widths_sh,
                               'conv_depths_sh': args.conv_depths_sh,
                               'stem_features_sh': args.stem_features_sh,
+                              'stem_filt_size': args.stem_filt_size,
+                              'stem_stride': args.stem_stride,
                               'conv_filts_sp': args.conv_filts_sp,
                               'conv_strides_sp': args.conv_strides_sp,
                               'filter_lengths_sp': args.filter_lengths_sp,
