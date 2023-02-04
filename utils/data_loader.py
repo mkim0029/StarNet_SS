@@ -73,7 +73,8 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
                  tasks, task_means, task_stds, calc_mutlimodal_vals=False,
                  median_thresh=0., std_min=0.01,
                  apply_dropout=False, add_noise=False, max_noise_factor=0.1, 
-                 random_chunk=False, overlap=0.5, load_second_chunk=False):
+                 random_chunk=False, overlap=0.5, load_second_chunk=False, 
+                 channel_indices=[0,11880,25880]):
         
         self.data_file = data_file
         self.dataset = dataset.lower()
@@ -94,10 +95,13 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
         self.random_chunk = random_chunk
         self.overlap = overlap
         self.load_second_chunk = load_second_chunk
+        self.channel_indices = channel_indices
+        
+        self.num_pixels = self.determine_num_pixels()
         
         # Determine starting pixel indices to choose chunks from
         self.starting_indices = self.determine_starting_indices()
-        
+                        
     def __len__(self):
         with h5py.File(self.data_file, "r") as f:    
             num_spectra = len(f['spectra %s' % self.dataset])
@@ -107,6 +111,10 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
                                    channel_starts=[0, 11880, 25880],
                                    channel_ends=[11880, 25880, 43480]):
 
+        channel_starts = self.channel_indices
+        channel_ends = channel_starts[1:] + [self.num_pixels]
+        
+        
         # Only grab chunks that are entirely within a single channel
         starting_indices = []
         for start_i, end_i in zip(channel_starts, channel_ends):
@@ -115,10 +123,18 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
                                                   self.num_fluxes*(1-self.overlap)).astype(int))
         return starting_indices
     
+    def determine_num_pixels(self):
+        with h5py.File(self.data_file, "r") as f:    
+            num_pixels = f['spectra %s' % self.dataset].shape[1]
+        return num_pixels
+    
     def select_random_chunk(self, spectrum, wave_grid, starting_indices, pixel_indx):
         
         # Select one channel
-        channel_num = np.random.randint(len(spectrum))
+        if len(spectrum)>1:
+            channel_num = np.random.randint(len(spectrum))
+        else:
+            channel_num = 0
         wave_grid = wave_grid[channel_num]
         starting_indices = starting_indices[channel_num]
         spectrum = spectrum[channel_num]
@@ -181,11 +197,25 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
             spectrum = f['spectra %s' % self.dataset][idx]
             spectrum[spectrum<-1] = -1.
             
+            data_keys = f.keys()
             # Load stellar labels
-            multimodal_labels = np.asarray([f[k + ' %s' % self.dataset][idx] for k in self.multimodal_keys])
-            multimodal_labels = torch.from_numpy(multimodal_labels.astype(np.float32))
-            unimodal_labels = np.asarray([f[k + ' %s' % self.dataset][idx] for k in self.unimodal_keys])
-            unimodal_labels = torch.from_numpy(unimodal_labels.astype(np.float32))
+            multimodal_labels = []
+            for k in self.multimodal_keys:
+                data_key = k + ' %s' % self.dataset
+                if data_key in data_keys:
+                    multimodal_labels.append(f[data_key][idx])
+                else:
+                    multimodal_labels.append(np.nan)
+            multimodal_labels = torch.from_numpy(np.asarray(multimodal_labels).astype(np.float32))
+            
+            unimodal_labels = []
+            for k in self.unimodal_keys:
+                data_key = k + ' %s' % self.dataset
+                if data_key in data_keys:
+                    unimodal_labels.append(f[data_key][idx])
+                else:
+                    unimodal_labels.append(np.nan)
+            unimodal_labels = torch.from_numpy(np.asarray(unimodal_labels).astype(np.float32))
             
             if self.continuum_normalize:
                 # Divide spectrum by its estimated continuum
@@ -196,16 +226,20 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
             spectrum = spectrum/np.median(spectrum[spectrum>self.median_thresh])
             
         # Index of leftmost pixel in each channel
-        pixel_indx = [0, 11880, 25880]
+        pixel_indx = self.channel_indices
 
         # Split spectrum into channels
-        wave_grid = [self.wave_grid[pixel_indx[0]:pixel_indx[1]], 
-                     self.wave_grid[pixel_indx[1]:pixel_indx[2]], 
-                     self.wave_grid[pixel_indx[2]:]]
-        spectrum = [spectrum[pixel_indx[0]:pixel_indx[1]], 
-                    spectrum[pixel_indx[1]:pixel_indx[2]], 
-                    spectrum[pixel_indx[2]:]]
-
+        wave_grid = []
+        spectrum_ = []
+        for i in range(len(pixel_indx)):
+            if i==(len(pixel_indx)-1):
+                wave_grid.append(self.wave_grid[pixel_indx[i]:])
+                spectrum_.append(spectrum[pixel_indx[i]:])
+            else:
+                wave_grid.append(self.wave_grid[pixel_indx[i]:pixel_indx[i+1]])
+                spectrum_.append(spectrum[pixel_indx[i]:pixel_indx[i+1]])
+        spectrum = spectrum_
+        
         # Remove channels without info
         wave_grid = [wave_grid[i] for i in range(len(spectrum)) if np.std(spectrum[i])>self.std_min]
         starting_indices = [self.starting_indices[i] for i in range(len(spectrum)) if np.std(spectrum[i])>self.std_min]
@@ -255,7 +289,8 @@ class WeaveSpectraDatasetInference(torch.utils.data.Dataset):
     def __init__(self, data_file, dataset, wave_grid_file, multimodal_keys, unimodal_keys, 
                  continuum_normalize, divide_by_median, num_fluxes,
                  tasks, task_means, task_stds, median_thresh=0., std_min=0.01, 
-                 random_chunk=False, overlap=0.5):
+                 random_chunk=False, overlap=0.5, 
+                 channel_indices=[0,11880,25880]):
         
         self.data_file = data_file
         self.dataset = dataset.lower()
@@ -272,6 +307,9 @@ class WeaveSpectraDatasetInference(torch.utils.data.Dataset):
         self.task_stds = task_stds
         self.overlap = overlap
         self.random_chunk = random_chunk
+        self.channel_indices = channel_indices
+        
+        self.num_pixels = self.determine_num_pixels()
         
         # Determine starting indices to choose chunks from
         self.starting_indices = self.determine_starting_indices()
@@ -285,13 +323,22 @@ class WeaveSpectraDatasetInference(torch.utils.data.Dataset):
                                    channel_starts=[0, 11880, 25880],
                                    channel_ends=[11880, 25880, 43480]):
 
+        channel_starts = self.channel_indices
+        channel_ends = channel_starts[1:] + [self.num_pixels]
+        
+        
         # Only grab chunks that are entirely within a single channel
         starting_indices = []
         for start_i, end_i in zip(channel_starts, channel_ends):
                 starting_indices.append(np.arange(0,
                                                   end_i-start_i-self.num_fluxes,
-                                                  self.num_fluxes*self.overlap).astype(int))
+                                                  self.num_fluxes*(1-self.overlap)).astype(int))
         return starting_indices
+    
+    def determine_num_pixels(self):
+        with h5py.File(self.data_file, "r") as f:    
+            num_pixels = f['spectra %s' % self.dataset].shape[1]
+        return num_pixels
     
     def __getitem__(self, idx):
         
@@ -301,11 +348,25 @@ class WeaveSpectraDatasetInference(torch.utils.data.Dataset):
             spectrum = f['spectra %s' % self.dataset][idx]
             spectrum[spectrum<-1] = -1.
             
+            data_keys = f.keys()
             # Load stellar labels
-            multimodal_labels = np.asarray([f[k + ' %s' % self.dataset][idx] for k in self.multimodal_keys])
-            multimodal_labels = torch.from_numpy(multimodal_labels.astype(np.float32))
-            unimodal_labels = np.asarray([f[k + ' %s' % self.dataset][idx] for k in self.unimodal_keys])
-            unimodal_labels = torch.from_numpy(unimodal_labels.astype(np.float32))
+            multimodal_labels = []
+            for k in self.multimodal_keys:
+                data_key = k + ' %s' % self.dataset
+                if data_key in data_keys:
+                    multimodal_labels.append(f[data_key][idx])
+                else:
+                    multimodal_labels.append(np.nan)
+            multimodal_labels = torch.from_numpy(np.asarray(multimodal_labels).astype(np.float32))
+            
+            unimodal_labels = []
+            for k in self.unimodal_keys:
+                data_key = k + ' %s' % self.dataset
+                if data_key in data_keys:
+                    unimodal_labels.append(f[data_key][idx])
+                else:
+                    unimodal_labels.append(np.nan)
+            unimodal_labels = torch.from_numpy(np.asarray(unimodal_labels).astype(np.float32))
             
             if self.continuum_normalize:
                 # Divide spectrum by its estimated continuum
@@ -315,16 +376,21 @@ class WeaveSpectraDatasetInference(torch.utils.data.Dataset):
             # Divide spectrum by its median to centre it around 1
             spectrum = spectrum/np.median(spectrum[spectrum>self.median_thresh])
 
-        # Index of leftmost pixel in spectrum
-        pixel_indx = [0, 11880, 25880]
 
+        # Index of leftmost pixel in each channel
+        pixel_indx = self.channel_indices
+        
         # Split spectrum into channels
-        wave_grid = [self.wave_grid[pixel_indx[0]:pixel_indx[1]], 
-                     self.wave_grid[pixel_indx[1]:pixel_indx[2]], 
-                     self.wave_grid[pixel_indx[2]:]]
-        spectrum = [spectrum[pixel_indx[0]:pixel_indx[1]], 
-                    spectrum[pixel_indx[1]:pixel_indx[2]], 
-                    spectrum[pixel_indx[2]:]]
+        wave_grid = []
+        spectrum_ = []
+        for i in range(len(pixel_indx)):
+            if i==(len(pixel_indx)-1):
+                wave_grid.append(self.wave_grid[pixel_indx[i]:])
+                spectrum_.append(spectrum[pixel_indx[i]:])
+            else:
+                wave_grid.append(self.wave_grid[pixel_indx[i]:pixel_indx[i+1]])
+                spectrum_.append(spectrum[pixel_indx[i]:pixel_indx[i+1]])
+        spectrum = spectrum_
 
         # Remove channels without info
         wave_grid = [wave_grid[i] for i in range(len(spectrum)) if np.std(spectrum[i])>self.std_min]

@@ -51,10 +51,13 @@ multimodal_keys = eval(config['DATA']['multimodal_keys'])
 unimodal_keys = eval(config['DATA']['unimodal_keys'])
 continuum_normalize = str2bool(config['DATA']['continuum_normalize'])
 divide_by_median = str2bool(config['DATA']['divide_by_median'])
+apply_dropout = str2bool(config['DATA']['apply_dropout'])
 add_noise_to_source = str2bool(config['DATA']['add_noise_to_source'])
 random_chunk = str2bool(config['DATA']['random_chunk'])
 overlap = float(config['DATA']['overlap'])
 max_noise_factor = float(config['DATA']['max_noise_factor'])
+channel_indices = eval(config['DATA']['channel_indices'])
+std_min = float(config['DATA']['std_min'])
 batch_size = int(config['TRAINING']['batchsize'])
 lr = float(config['TRAINING']['lr'])
 weight_decay = float(config['TRAINING']['weight_decay'])
@@ -114,13 +117,14 @@ source_train_dataset = WeaveSpectraDataset(source_data_file,
                                            tasks=model.module.tasks, 
                                            task_means=model.module.task_means.cpu().numpy(), 
                                            task_stds=model.module.task_stds.cpu().numpy(),
-                                           median_thresh=0., std_min=0.01,
-                                           apply_dropout=True,
+                                           median_thresh=0., std_min=std_min,
+                                           apply_dropout=apply_dropout,
                                            add_noise=add_noise_to_source,
                                            max_noise_factor=max_noise_factor,
                                            random_chunk=random_chunk,
                                            overlap=overlap,
-                                           load_second_chunk=load_second_chunk)
+                                           load_second_chunk=load_second_chunk,
+                                           channel_indices=channel_indices)
 
 source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
                                                       batch_size=batch_size, 
@@ -139,9 +143,10 @@ source_val_dataset = WeaveSpectraDatasetInference(source_data_file,
                                                   tasks=model.module.tasks, 
                                                   task_means=model.module.task_means.cpu().numpy(), 
                                                   task_stds=model.module.task_stds.cpu().numpy(),
-                                                  median_thresh=0., std_min=0.01, 
+                                                  median_thresh=0., std_min=std_min, 
                                                   random_chunk=random_chunk,
-                                                  overlap=overlap)
+                                                  overlap=overlap,
+                                                  channel_indices=channel_indices)
 
 source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset, 
                                                     batch_size=1, 
@@ -160,11 +165,12 @@ target_train_dataset = WeaveSpectraDataset(target_data_file,
                                            tasks=model.module.tasks, 
                                            task_means=model.module.task_means.cpu().numpy(), 
                                            task_stds=model.module.task_stds.cpu().numpy(),
-                                           median_thresh=0., std_min=0.01, 
+                                           median_thresh=0., std_min=std_min, 
                                            apply_dropout=False,
                                            random_chunk=random_chunk,
                                            overlap=overlap,
-                                           load_second_chunk=load_second_chunk)
+                                           load_second_chunk=load_second_chunk,
+                                          channel_indices=channel_indices)
 
 target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
                                                       batch_size=batch_size, 
@@ -183,9 +189,10 @@ target_val_dataset = WeaveSpectraDatasetInference(target_data_file,
                                                   tasks=model.module.tasks, 
                                                   task_means=model.module.task_means.cpu().numpy(), 
                                                   task_stds=model.module.task_stds.cpu().numpy(),
-                                                  median_thresh=0., std_min=0.01, 
+                                                  median_thresh=0., std_min=std_min, 
                                                   random_chunk=random_chunk,
-                                                   overlap=overlap)
+                                                   overlap=overlap,
+                                                 channel_indices=channel_indices)
 
 target_val_dataloader = torch.utils.data.DataLoader(target_val_dataset, 
                                                     batch_size=1, 
