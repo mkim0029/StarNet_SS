@@ -175,7 +175,7 @@ target_train_dataset = WeaveSpectraDataset(target_data_file,
 target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
                                                       batch_size=batch_size, 
                                                       shuffle=True, 
-                                                      num_workers=0,
+                                                      num_workers=3,
                                                       pin_memory=True)
 
 target_val_dataset = WeaveSpectraDatasetInference(target_data_file, 
