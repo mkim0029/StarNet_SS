@@ -160,13 +160,13 @@ plot_val_MAEs(losses, multimodal_keys,
 (tgt_stellar_labels, pred_stellar_labels, 
 sigma_stellar_labels) = predict_labels(model, source_train_dataset, device=device)
 
-plot_resid_boxplot(multimodal_keys, tgt_stellar_labels[:,:-1], pred_stellar_labels[:,:-1],
+plot_resid_boxplot(multimodal_keys, tgt_stellar_labels, pred_stellar_labels,
                    y_lims=[300, 0.6, 1, 0.2],
                    savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
 
 (tgt_stellar_labels, pred_stellar_labels, 
 sigma_stellar_labels) = predict_labels(model, target_train_dataset, device=device)
 
-plot_resid_boxplot(multimodal_keys, tgt_stellar_labels[:,:-1], pred_stellar_labels[:,:-1],
+plot_resid_boxplot(multimodal_keys, tgt_stellar_labels, pred_stellar_labels,
                    y_lims=[300, 0.6, 1, 0.2],
                    savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
