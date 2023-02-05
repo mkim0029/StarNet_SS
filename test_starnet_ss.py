@@ -53,6 +53,8 @@ divide_by_median = str2bool(config['DATA']['divide_by_median'])
 add_noise_to_source = str2bool(config['DATA']['add_noise_to_source'])
 random_chunk = str2bool(config['DATA']['random_chunk'])
 overlap = float(config['DATA']['overlap'])
+channel_indices = eval(config['DATA']['channel_indices'])
+std_min = float(config['DATA']['std_min'])
 batch_size = int(config['TRAINING']['batchsize'])
 
 # Calculate multimodal values from source training set
@@ -87,9 +89,10 @@ source_train_dataset = WeaveSpectraDatasetInference(source_data_file,
                                            tasks=model.module.tasks, 
                                            task_means=model.module.task_means.cpu().numpy(), 
                                            task_stds=model.module.task_stds.cpu().numpy(),
-                                           median_thresh=0., std_min=0.01,
-                                           random_chunk=random_chunk,
-                                                  overlap=overlap)
+                                           median_thresh=0., std_min=std_min, 
+                                                  random_chunk=random_chunk,
+                                                  overlap=overlap,
+                                                  channel_indices=channel_indices)
 
 source_val_dataset = WeaveSpectraDatasetInference(source_data_file, 
                                          dataset='val', 
@@ -102,9 +105,10 @@ source_val_dataset = WeaveSpectraDatasetInference(source_data_file,
                                          tasks=model.module.tasks, 
                                          task_means=model.module.task_means.cpu().numpy(), 
                                          task_stds=model.module.task_stds.cpu().numpy(),
-                                         median_thresh=0., std_min=0.01,
-                                           random_chunk=random_chunk,
-                                                  overlap=overlap)
+                                         median_thresh=0., std_min=std_min, 
+                                                  random_chunk=random_chunk,
+                                                  overlap=overlap,
+                                                  channel_indices=channel_indices)
 
 target_train_dataset = WeaveSpectraDatasetInference(target_data_file, 
                                            dataset='train', 
@@ -117,9 +121,10 @@ target_train_dataset = WeaveSpectraDatasetInference(target_data_file,
                                            tasks=model.module.tasks, 
                                            task_means=model.module.task_means.cpu().numpy(), 
                                            task_stds=model.module.task_stds.cpu().numpy(),
-                                           median_thresh=0., std_min=0.01,
-                                           random_chunk=random_chunk,
-                                                  overlap=overlap)
+                                           median_thresh=0., std_min=std_min, 
+                                                  random_chunk=random_chunk,
+                                                  overlap=overlap,
+                                                  channel_indices=channel_indices)
 
 target_val_dataset = WeaveSpectraDatasetInference(target_data_file, 
                                          dataset='val', 
@@ -132,9 +137,10 @@ target_val_dataset = WeaveSpectraDatasetInference(target_data_file,
                                          tasks=model.module.tasks, 
                                          task_means=model.module.task_means.cpu().numpy(), 
                                          task_stds=model.module.task_stds.cpu().numpy(),
-                                         median_thresh=0., std_min=0.01,
-                                           random_chunk=random_chunk,
-                                                  overlap=overlap)
+                                         median_thresh=0., std_min=std_min, 
+                                                  random_chunk=random_chunk,
+                                                  overlap=overlap,
+                                                  channel_indices=channel_indices)
 
 print('The source training set consists of %i spectra.' % (len(source_train_dataset)))
 print('The source validation set consists of %i spectra.' % (len(source_val_dataset)))
