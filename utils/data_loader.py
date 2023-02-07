@@ -204,6 +204,8 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
                 data_key = k + ' %s' % self.dataset
                 if data_key in data_keys:
                     multimodal_labels.append(f[data_key][idx])
+                elif ('mg' in data_key) & ('alpha %s' % self.dataset in data_keys):
+                    multimodal_labels.append(f['alpha %s' % self.dataset][idx])
                 else:
                     multimodal_labels.append(np.nan)
             multimodal_labels = torch.from_numpy(np.asarray(multimodal_labels).astype(np.float32))
@@ -355,6 +357,8 @@ class WeaveSpectraDatasetInference(torch.utils.data.Dataset):
                 data_key = k + ' %s' % self.dataset
                 if data_key in data_keys:
                     multimodal_labels.append(f[data_key][idx])
+                elif ('mg' in data_key) & ('alpha %s' % self.dataset in data_keys):
+                    multimodal_labels.append(f['alpha %s' % self.dataset][idx])
                 else:
                     multimodal_labels.append(np.nan)
             multimodal_labels = torch.from_numpy(np.asarray(multimodal_labels).astype(np.float32))
