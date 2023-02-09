@@ -41,9 +41,15 @@ def task_loss_fn(y_true, y_pred):
     '''Take average of each task loss separately.'''
     return torch.mean((y_true - y_pred)**2, axis=0)
 
+def CosineSimilarityLoss(eps=1e-6):
+    cos = torch.nn.CosineSimilarity(dim=1, eps=eps)
+    def loss(inp, tgt):
+        return torch.mean(1 - cos(inp, tgt))
+    return loss
+
 def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler, 
              source_mm_weights, source_um_weights, source_feature_weight, target_feature_weight,
-             source_task_weights, target_task_weights, losses_cp, mode='train'):
+             source_task_weights, target_task_weights, feat_loss_fn, losses_cp, mode='train'):
     
     if mode=='train':
         model.module.train_mode()
@@ -93,10 +99,10 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
                                   norm_in=True, denorm_out=False, return_feats=True)
         
         # Compare feature maps
-        src_feature_loss = torch.nn.MSELoss()(model_outputs_src['feature map'], 
+        src_feature_loss = feat_loss_fn(model_outputs_src['feature map'], 
                                               model_outputs_src2['feature map'])
         
-        tgt_feature_loss = torch.nn.MSELoss()(model_outputs_tgt['feature map'], 
+        tgt_feature_loss = feat_loss_fn(model_outputs_tgt['feature map'], 
                                               model_outputs_tgt2['feature map'])
         
         if source_feature_weight>0:

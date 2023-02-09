@@ -107,6 +107,9 @@ def parseArguments():
     parser.add_argument("-stw", "--source_task_weights", 
                         help="Loss weights for each task in the target domain.", 
                         default=[0.1, 0.05, 0.05, 0.1])
+    parser.add_argument("-flf", "--feat_loss_fn", 
+                        help="Type of loss function to use for feature comparison (mse, l1, or cosine.", 
+                        type=str, default='mse')
     
     parser.add_argument("-nf", "--num_fluxes", 
                         help="Number of flux values used as input to model.", 
@@ -230,7 +233,8 @@ elif user_input=='o':
                           'target_feature_weight': args.target_feature_weight,
                           'source_feature_weight': args.source_feature_weight,
                           'source_task_weights': args.source_task_weights,
-                          'target_task_weights': args.target_task_weights}
+                          'target_task_weights': args.target_task_weights,
+                          'feat_loss_fn': args.feat_loss_fn}
     
     config['ARCHITECTURE'] = {'spectrum_size': args.spectrum_size,
                               'num_fluxes': args.num_fluxes,

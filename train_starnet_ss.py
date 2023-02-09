@@ -6,7 +6,7 @@ cur_dir = os.path.dirname(__file__)
 import sys
 sys.path.append(os.path.join(cur_dir,'utils'))
 from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch_to_device
-from training_utils import (parseArguments, run_iter, 
+from training_utils import (parseArguments,CosineSimilarityLoss, run_iter, 
                             str2bool, compare_val_sample)
 from network import StarNet, build_starnet, load_model_state
 
@@ -68,6 +68,7 @@ source_feature_weight = float(config['TRAINING']['source_feature_weight'])
 target_feature_weight = float(config['TRAINING']['target_feature_weight'])
 target_task_weights = torch.tensor(eval(config['TRAINING']['target_task_weights'])).to(device)
 source_task_weights = torch.tensor(eval(config['TRAINING']['source_task_weights'])).to(device)
+feat_loss_fn = config['TRAINING']['feat_loss_fn']
 
 # Calculate multimodal values from source training set
 with h5py.File(source_data_file, "r") as f:
@@ -206,6 +207,13 @@ print('The source validation set consists of %i spectra.' % (len(source_val_data
 print('The target training set consists of %i spectra.' % (len(target_train_dataset)))
 print('The target validation set consists of %i spectra.' % (len(target_val_dataset)))
 
+if 'mse' in feat_loss_fn.lower():
+    feat_loss_fn = torch.nn.MSELoss()
+elif 'l1' in feat_loss_fn.lower():
+    feat_loss_fn = torch.nn.L1Loss()
+elif 'cosine' in feat_loss_fn.lower():
+    feat_loss_fn = CosineSimilarityLoss()
+
 def train_network(model, optimizer, lr_scheduler, cur_iter):
     print('Training the network with a batch size of %i...' % (batch_size))
     print('Progress will be displayed every %i batch iterations and the model will be saved every %i minutes.'%
@@ -241,6 +249,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                                                                  target_feature_weight,
                                                                  source_task_weights,
                                                                  target_task_weights,
+                                                                 feat_loss_fn,
                                                                  losses_cp, 
                                                                  mode='train')
 

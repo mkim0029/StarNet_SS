@@ -341,7 +341,7 @@ class StarNet(torch.nn.Module):
             classes.append(torch.cat([torch.where(vals==labels[j,i])[0] for j in range(len(labels))]))
         return classes
     
-    def class_to_label(self, classes):
+    def class_to_label(self, classes, take_mode=False):
         '''Convert probabilities into labels using a weighted sum and the multimodal values.'''
         labels = []
         for cla, c_vals in zip(classes,
@@ -351,9 +351,13 @@ class StarNet(torch.nn.Module):
             
             # Turn predictions in "probabilities"
             prob = torch.exp(cla)
-
-            # Take weighted average using class values and probabilities
-            labels.append(torch.sum(prob*c_vals, axis=1))
+            if take_mode:
+                # Take the class with the highest probability
+                class_indices = torch.argmax(prob, dim=(1), keepdim=True)
+                labels.append(torch.cat([c_vals[i] for i in class_indices]))
+            else:
+                # Take weighted average using class values and probabilities
+                labels.append(torch.sum(prob*c_vals, axis=1))
 
         return torch.stack(labels).T
     
@@ -449,7 +453,8 @@ class StarNet(torch.nn.Module):
         return chain(*parameters)
         
     def forward(self, x, pixel_indx=None, norm_in=True, 
-                denorm_out=False, return_feats=False, return_feats_only=False):
+                denorm_out=False, take_mode=False, 
+                return_feats=False, return_feats_only=False):
         
         if norm_in:
             # Normalize spectra
@@ -490,7 +495,7 @@ class StarNet(torch.nn.Module):
                 mm_labels = [classifier(x) for classifier in self.label_classifiers]
                 if denorm_out:
                     # Denormalize labels
-                    mm_labels = self.class_to_label(mm_labels)
+                    mm_labels = self.class_to_label(mm_labels, take_mode=take_mode)
                 return_dict['multimodal labels'] = mm_labels
                 
             if self.num_um_labels>0:

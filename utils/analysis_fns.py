@@ -266,7 +266,7 @@ def plot_label_MAE(losses, label_keys, y_lims=[(0,1)], x_lim=None,
     plt.show()
     
     
-def predict_labels(model, dataset, device, batchsize=16):
+def predict_labels(model, dataset, device, batchsize=16, take_mode=False):
     
     print('Predicting on %i spectra...' % (len(dataset)))
     try:
@@ -299,11 +299,13 @@ def predict_labels(model, dataset, device, batchsize=16):
                 # Perform forward propagation
                 model_outputs = model(batch['spectrum chunks'].squeeze(0), 
                                       batch['pixel_indx'].squeeze(0),
-                                      norm_in=True, denorm_out=True)
+                                      norm_in=True, denorm_out=True,
+                                     take_mode=take_mode)
             except AttributeError:
                 model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
                                       batch['pixel_indx'].squeeze(0),
-                                      norm_in=True, denorm_out=True)
+                                      norm_in=True, denorm_out=True,
+                                     take_mode=take_mode)
 
             #if len(model.tasks)>0:
             #    pred_task_labels.append(model_outputs['task labels'].data.cpu().numpy())
@@ -324,7 +326,7 @@ def predict_labels(model, dataset, device, batchsize=16):
     return (tgt_stellar_labels, pred_stellar_labels, 
             sigma_stellar_labels)
 
-def predict_ensemble(models, dataset, channel_starts = [0, 11880, 25880], batchsize=16):
+def predict_ensemble(models, dataset, channel_starts = [0, 11880, 25880], batchsize=16, take_mode=False):
     
     # Create a list of the starting indices of the chunks
     channel_starts = [0, 11880, 25880]
@@ -357,7 +359,8 @@ def predict_ensemble(models, dataset, channel_starts = [0, 11880, 25880], batchs
                 # Perform forward propagation
                 model_outputs = model(batch['spectrum chunks'].squeeze(0), 
                                       batch['pixel_indx'].squeeze(0),
-                                      norm_in=True, denorm_out=True)
+                                      norm_in=True, denorm_out=True,
+                                     take_mode=take_mode)
 
                 sl = np.hstack((model_outputs['multimodal labels'].data.numpy(), 
                             model_outputs['unimodal labels'].data.numpy()))
