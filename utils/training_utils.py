@@ -79,14 +79,19 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
                 total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss
     
     if model.module.num_um_labels>0:
-        src_um_loss = torch.nn.MSELoss()(model_outputs_src['unimodal labels'], 
-                                            model.module.normalize_unimodal(src_batch['unimodal labels']))
+        src_um_loss_tot = 0.
+        src_um_labels = model.module.normalize_unimodal(src_batch['unimodal labels'])
+        for i in range(model.module.num_um_labels):
+            src_um_loss = torch.nn.MSELoss()(model_outputs_src['unimodal labels'][:,i], 
+                                             src_um_labels[:.i])
+            src_um_loss_tot += 1/model.module.num_um_labels * src_um_loss
+            
+            # Add to total loss
+            if source_um_weights[i]>0:
+                total_loss = total_loss + source_um_weights[i]/model.module.num_um_labels * src_um_loss
         
-        # Add to total loss
-        if source_um_weights>0:
-            total_loss = total_loss + source_um_weights*src_um_loss
     else:
-        src_label_loss = 0.
+        src_um_loss_tot = 0.
         
     if model.module.use_split_convs:
         # Compute prediction on second source batch
@@ -133,9 +138,9 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
             losses_cp['train_src_feats'].append(float(src_feature_loss))
             losses_cp['train_tgt_feats'].append(float(tgt_feature_loss))
         if model.module.num_mm_labels>0:
-            losses_cp['train_src_mm_labels'].append(float(src_mm_loss))
+            losses_cp['train_src_mm_labels'].append(float(src_mm_loss_tot))
         if model.module.num_um_labels>0:
-            losses_cp['train_src_um_labels'].append(float(src_um_loss))
+            losses_cp['train_src_um_labels'].append(float(src_um_loss_tot))
         if len(model.module.tasks)>0:
             losses_cp['train_src_tasks'].append(src_task_losses.cpu().data.numpy().tolist())
             losses_cp['train_tgt_tasks'].append(tgt_task_losses.cpu().data.numpy().tolist())
