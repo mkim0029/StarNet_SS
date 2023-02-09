@@ -83,7 +83,7 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
         src_um_labels = model.module.normalize_unimodal(src_batch['unimodal labels'])
         for i in range(model.module.num_um_labels):
             src_um_loss = torch.nn.MSELoss()(model_outputs_src['unimodal labels'][:,i], 
-                                             src_um_labels[:.i])
+                                             src_um_labels[:,i])
             src_um_loss_tot += 1/model.module.num_um_labels * src_um_loss
             
             # Add to total loss
