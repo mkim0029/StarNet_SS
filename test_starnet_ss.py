@@ -153,7 +153,7 @@ plot_progress(losses, model.module.tasks,
              savename=os.path.join(figs_dir, '%s_train_progress.png'%model_name))
 
 plot_val_MAEs(losses, multimodal_keys+unimodal_keys, 
-              y_lims=[(0.,200.), (0.,0.1), (0.,0.25), (0.,.1)],
+              y_lims=[(0.,200.), (0.,0.1), (0.,0.25), (0.,.1), (0.,0.2), (0.,30)],
              savename=os.path.join(figs_dir, '%s_val_progress.png'%model_name))
 
 
