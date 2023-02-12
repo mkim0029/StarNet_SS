@@ -174,7 +174,8 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     for i in range(0, src_batch['spectrum chunks'].size(1), batch_size):
         model_outputs = model(src_batch['spectrum chunks'][:,i:i+batch_size].squeeze(0),
                               src_batch['pixel_indx'][:,i:i+batch_size].squeeze(0),
-                              norm_in=True, denorm_out=True, return_feats=True, take_mode=True)
+                              norm_in=True, denorm_out=True, return_feats=True, 
+                              take_mode=True, combine_batch_probs=True)
         
         model_feats_src.append(model_outputs['feature map'])
         mm_label_preds_src.append(model_outputs['multimodal labels'])
@@ -188,7 +189,8 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     for i in range(0, tgt_batch['spectrum chunks'].size(1), batch_size):
         model_outputs = model(tgt_batch['spectrum chunks'][:,i:i+batch_size].squeeze(0),
                               tgt_batch['pixel_indx'][:,i:i+batch_size].squeeze(0),
-                              norm_in=True, denorm_out=True, return_feats=True, take_mode=True)
+                              norm_in=True, denorm_out=True, return_feats=True, 
+                              take_mode=True, combine_batch_probs=True)
         
         model_feats_tgt.append(model_outputs['feature map'])
         mm_label_preds_tgt.append(model_outputs['multimodal labels'])

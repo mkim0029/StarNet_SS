@@ -341,7 +341,7 @@ class StarNet(torch.nn.Module):
             classes.append(torch.cat([torch.where(vals==labels[j,i])[0] for j in range(len(labels))]))
         return classes
     
-    def class_to_label(self, classes, take_mode=False):
+    def class_to_label(self, classes, take_mode=False, combine_batch_probs=False):
         '''Convert probabilities into labels using a weighted sum and the multimodal values.'''
         labels = []
         for cla, c_vals in zip(classes,
@@ -351,6 +351,13 @@ class StarNet(torch.nn.Module):
             
             # Turn predictions in "probabilities"
             prob = torch.exp(cla)
+            
+            if combine_batch_probs:
+                # This batch all came from the same spectrum, so we can 
+                # add the predicted probability distributions
+                prob = torch.sum(prob, dim=0, keepdim=True)
+                prob = prob / torch.sum(prob)
+            
             if take_mode:
                 # Take the class with the highest probability
                 class_indices = torch.argmax(prob, dim=(1), keepdim=True)
@@ -453,7 +460,7 @@ class StarNet(torch.nn.Module):
         return chain(*parameters)
         
     def forward(self, x, pixel_indx=None, norm_in=True, 
-                denorm_out=False, take_mode=False, 
+                denorm_out=False, take_mode=False, combine_batch_probs=False,
                 return_feats=False, return_feats_only=False):
         
         if norm_in:
@@ -495,12 +502,18 @@ class StarNet(torch.nn.Module):
                 mm_labels = [classifier(x) for classifier in self.label_classifiers]
                 if denorm_out:
                     # Denormalize labels
-                    mm_labels = self.class_to_label(mm_labels, take_mode=take_mode)
+                    mm_labels = self.class_to_label(mm_labels, take_mode=take_mode,
+                                                    combine_batch_probs=combine_batch_probs)
                 return_dict['multimodal labels'] = mm_labels
                 
             if self.num_um_labels>0:
                 # Predict labels from features
                 um_labels = self.unimodal_predictor(x)
+                if combine_batch_probs:
+                    # This batch all came from the same spectrum, so we can 
+                    # take the average of the predictions
+                    um_labels = torch.mean(um_labels, dim=0, keepdim=True)
+                
                 if denorm_out:
                     # Denormalize labels
                     um_labels = self.denormalize_unimodal(um_labels)
