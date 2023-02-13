@@ -2,24 +2,16 @@ import os
 import itertools
 
 # Starting number for jobs
-start_model_num = 146
+start_model_num = 220
 
 # Different parameters to try out
-grid_params = {'n': [4],
-               'acc': ['def-bazalova'],
-               'sfn': ['nonLTE.h5'],
+grid_params = {'acc': ['def-bazalova'],
                'wd':[0.01, 0.001],
-               'ti':[1000000],
                'smw': [[5.0, 5.0, 5.0, 5.0],
                        [1.0, 1.0, 1.0, 1.0]],
-               'suw': [[0.01], [0.001]],
-               'tfw/sfw': [0.01, 0.001],
+               'tfw/sfw': [1., 0.1],
                'ttw/stw': [[0.01, 0.01, 0.01, 0.01],
-                           [0.001, 0.001, 0.001, 0.001]],
-               'sm': [0.9],
-               'ss': [0.36],
-               'tm': [[5416, 0, 0.0, 35.]],
-               'ts': [[900, 5e-05, 0.1, 70.]]}
+                           [0.1, 0.1, 0.1, 0.1]]}
 
 # Create a list of all possible parameter combinations
 keys, values = zip(*grid_params.items())

@@ -22,7 +22,7 @@ def parseArguments():
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=6)
+                        type=int, default=7)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
@@ -39,7 +39,7 @@ def parseArguments():
                         type=str, default='ambre.h5') 
     parser.add_argument("-tfn", "--target_data_file", 
                         help="Target data file for training.", 
-                        type=str, default='golden_sample.h5') 
+                        type=str, default='golden_sample2.h5') 
     parser.add_argument("-wfn", "--wave_grid_file", 
                         help="Wave grid file.", 
                         type=str, default='weave_hr_wavegrid_arms.npy')
@@ -94,22 +94,22 @@ def parseArguments():
                         default=[5.0, 5.0, 5.0, 5.0])
     parser.add_argument("-suw", "--source_um_weights", 
                         help="Loss weights for the unimodal MSE in the source domain.", 
-                        default=[0.1])
+                        default=[1.])
     parser.add_argument("-tfw", "--target_feature_weight", 
                         help="Loss weight for the feature comparison in the target domain.", 
-                        type=float, default=1.)
+                        type=float, default=0.1)
     parser.add_argument("-sfw", "--source_feature_weight", 
                         help="Loss weight for the feature comparison in the source domain.", 
-                        type=float, default=1.)
+                        type=float, default=0.1)
     parser.add_argument("-ttw", "--target_task_weights", 
                         help="Loss weights for each task in the target domain.", 
-                        default=[0.1, 0.05, 0.05, 0.1])
+                        default=[0.05, 0.05, 0.05, 0.05])
     parser.add_argument("-stw", "--source_task_weights", 
                         help="Loss weights for each task in the target domain.", 
-                        default=[0.1, 0.05, 0.05, 0.1])
+                        default=[0.05, 0.05, 0.05, 0.05])
     parser.add_argument("-flf", "--feat_loss_fn", 
                         help="Type of loss function to use for feature comparison (mse, l1, or cosine.", 
-                        type=str, default='mse')
+                        type=str, default='l1')
     
     parser.add_argument("-nf", "--num_fluxes", 
                         help="Number of flux values used as input to model.", 
@@ -122,7 +122,7 @@ def parseArguments():
                         type=int, default=18)
     parser.add_argument("-cwsh", "--conv_widths_sh", 
                         help="Number of to use in each stage of the ConvNext model.", 
-                        default=[32, 64, 128, 128])
+                        default=[64, 128, 256, 512])
     parser.add_argument("-cdsh", "--conv_depths_sh", 
                         help="Depth of each stage of the ConvNext model.", 
                         default=[3, 4, 6, 4])
@@ -137,7 +137,7 @@ def parseArguments():
                         type=int, default=4)
     parser.add_argument("-cf", "--conv_filts_sp", 
                         help="Number of filters in conv layers.", 
-                        default=[32])
+                        default=[64])
     parser.add_argument("-fl", "--filter_lengths_sp", 
                         help="Length of filters in conv layers.", 
                         default=[7])
