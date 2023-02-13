@@ -217,19 +217,19 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     src_mm_losses = []
     tgt_mm_losses = []
     for i in range(model.module.num_mm_labels):
-        src_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_src[0,i], 
-                                               src_batch['multimodal labels'][0,i]))
-        tgt_mm_losses.append(torch.nn.L1Loss()(mm_label_preds_tgt[0,i], 
-                                               tgt_batch['multimodal labels'][0,i]))
+        src_mm_losses.append(torch.sqrt(torch.nn.MSELoss()(mm_label_preds_src[0,i], 
+                                               src_batch['multimodal labels'][0,i])))
+        tgt_mm_losses.append(torch.sqrt(torch.nn.MSELoss()(mm_label_preds_tgt[0,i], 
+                                               tgt_batch['multimodal labels'][0,i])))
     
     # Compute mean absolute error on unimodal label predictions
     src_um_losses = []
     tgt_um_losses = []
     for i in range(model.module.num_um_labels):
-        src_um_losses.append(torch.nn.L1Loss()(um_label_preds_src[0,i], 
-                                               src_batch['unimodal labels'][0,i]))
-        tgt_um_losses.append(torch.nn.L1Loss()(um_label_preds_tgt[0,i], 
-                                               tgt_batch['unimodal labels'][0,i]))
+        src_um_losses.append(torch.sqrt(torch.nn.MSELoss()(um_label_preds_src[0,i], 
+                                               src_batch['unimodal labels'][0,i])))
+        tgt_um_losses.append(torch.sqrt(torch.nn.MSELoss()(um_label_preds_tgt[0,i], 
+                                               tgt_batch['unimodal labels'][0,i])))
     
     # Compute max and min of each feature
     max_feat = torch.max(torch.cat((model_feats_src, model_feats_tgt), 0), 
