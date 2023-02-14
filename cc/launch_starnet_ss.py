@@ -91,7 +91,7 @@ def parseArguments():
                         type=int, default=500000)
     parser.add_argument("-smw", "--source_mm_weights", 
                         help="Loss weights for the multimodal NLL in the source domain.", 
-                        default=[5.0, 5.0, 5.0, 5.0])
+                        default=[1.0, 1.0, 1.0, 1.0])
     parser.add_argument("-suw", "--source_um_weights", 
                         help="Loss weights for the unimodal MSE in the source domain.", 
                         default=[1.])
@@ -103,10 +103,10 @@ def parseArguments():
                         type=float, default=0.1)
     parser.add_argument("-ttw", "--target_task_weights", 
                         help="Loss weights for each task in the target domain.", 
-                        default=[0.05, 0.05, 0.05, 0.05])
+                        default=[0.01, 0.01, 0.01, 0.01])
     parser.add_argument("-stw", "--source_task_weights", 
                         help="Loss weights for each task in the target domain.", 
-                        default=[0.05, 0.05, 0.05, 0.05])
+                        default=[0.01, 0.01, 0.01, 0.01])
     parser.add_argument("-flf", "--feat_loss_fn", 
                         help="Type of loss function to use for feature comparison (mse, l1, or cosine.", 
                         type=str, default='l1')
