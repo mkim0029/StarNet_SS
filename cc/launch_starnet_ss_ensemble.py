@@ -9,6 +9,7 @@ num_ensemble = 6
 
 # Parameters to change from default configuration
 params = {'n':10,
+          'acc':'def-bazalova',
           'ti':700000}
 
 # Turn parameters into command
