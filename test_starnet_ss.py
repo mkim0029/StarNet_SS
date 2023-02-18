@@ -157,10 +157,6 @@ plot_val_MAEs(losses, multimodal_keys+unimodal_keys,
               y_lims=[(0.,200.), (0.,0.2), (0.,0.4), (0.,.6), (0,40)],
              savename=os.path.join(figs_dir, '%s_val_progress.png'%model_name))
 
-
-(tgt_stellar_labels, pred_stellar_labels, 
-sigma_stellar_labels) = predict_labels(model, source_train_dataset, device=device, take_mode=True)
-
 # Predict on source
 (tgt_mm_labels, tgt_um_labels, 
  pred_mm_labels, pred_um_labels) = predict_labels(model, source_train_dataset, 
