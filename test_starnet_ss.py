@@ -150,7 +150,7 @@ print('The target validation set consists of %i spectra.' % (len(target_val_data
 
 # Plot the training progress
 plot_progress(losses, model.module.tasks, 
-              y_lims=[(1,12),(0.,4),(0.0,0.7),(0,0.07),(0,0.01),(0,1.),(0,0.3),(0,0.3),(0,0.2)],
+              y_lims=[(1,12),(0.,4),(0.0,0.7),(0,0.07),(0,0.1),(0,.05),(0,0.05),(0,0.1),(0,0.6)],
              savename=os.path.join(figs_dir, '%s_train_progress.png'%model_name))
 
 plot_val_MAEs(losses, multimodal_keys+unimodal_keys, 
