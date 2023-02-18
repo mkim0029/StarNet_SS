@@ -266,7 +266,7 @@ def plot_label_MAE(losses, label_keys, y_lims=[(0,1)], x_lim=None,
     plt.show()
     
     
-def predict_labels(model, dataset, device, batchsize=16, take_mode=False):
+def predict_labels(model, dataset, device, batchsize=16, take_mode=False, combine_batch_probs=False):
     
     print('Predicting on %i spectra...' % (len(dataset)))
     try:
@@ -274,57 +274,47 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False):
     except AttributeError:
         model.module.eval_mode()
     
-    tgt_stellar_labels = []
-    pred_stellar_labels = []
-    sigma_stellar_labels = []
-    tgt_task_labels = []
-    pred_task_labels = []
+    tgt_mm_labels = []
+    tgt_um_labels = []
+    pred_mm_labels = []
+    pred_um_labels = []
     with torch.no_grad():
         # Loop through spectra in dataset
         for indx in range(len(dataset)):
             batch = dataset.__getitem__(indx)
-            
             batch = batch_to_device(batch, device)
 
             # Collect target data
-            if len(batch['task labels'])>0:
-                tgt_task_labels.append(batch['task labels'].data.cpu().numpy())
+            tgt_mm_labels.append(batch['multimodal labels'].data.cpu().numpy())
             if len(batch['unimodal labels'])>0:
-                tgt_stellar_labels.append(np.concatenate((batch['multimodal labels'].data.cpu().numpy(),
-                                                     batch['unimodal labels'].data.cpu().numpy())))
-            else:
-                tgt_stellar_labels.append(batch['multimodal labels'].data.cpu().numpy())
+                tgt_um_labels.append(batch['unimodal labels'].data.cpu().numpy())
 
             try:
                 # Perform forward propagation
                 model_outputs = model(batch['spectrum chunks'].squeeze(0), 
                                       batch['pixel_indx'].squeeze(0),
                                       norm_in=True, denorm_out=True,
-                                     take_mode=take_mode)
+                                     take_mode=take_mode,
+                                      combine_batch_probs=combine_batch_probs)
             except AttributeError:
                 model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
                                       batch['pixel_indx'].squeeze(0),
                                       norm_in=True, denorm_out=True,
-                                     take_mode=take_mode)
+                                     take_mode=take_mode,
+                                            combine_batch_probs=combine_batch_probs)
 
-            #if len(model.tasks)>0:
-            #    pred_task_labels.append(model_outputs['task labels'].data.cpu().numpy())
-            if len(batch['unimodal labels'])>0:
-                sl = np.hstack((model_outputs['multimodal labels'].data.cpu().numpy(), 
-                                model_outputs['unimodal labels'].data.cpu().numpy()))
-            else:
-                sl = model_outputs['multimodal labels'].data.cpu().numpy()
             # Take average from all spectrum chunk predictions
-            pred_stellar_labels.append(np.mean(sl, axis=0))
+            pred_mm_labels.append(np.mean(model_outputs['multimodal labels'].data.cpu().numpy(), axis=0))
+            if len(batch['unimodal labels'])>0:
+                pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))
 
-        tgt_stellar_labels = np.vstack(tgt_stellar_labels)
-        pred_stellar_labels = np.vstack(pred_stellar_labels)
-        #if len(model.tasks)>0:
-            #tgt_task_labels = np.hstack(tgt_task_labels).T
-            #pred_task_labels = np.hstack(pred_task_labels).T 
+        tgt_mm_labels = np.vstack(tgt_mm_labels)
+        tgt_um_labels = np.vstack(tgt_um_labels)
+        pred_mm_labels = np.vstack(pred_mm_labels)
+        pred_um_labels = np.vstack(pred_um_labels)
+
         
-    return (tgt_stellar_labels, pred_stellar_labels, 
-            sigma_stellar_labels)
+    return tgt_mm_labels, tgt_um_labels, pred_mm_labels, pred_um_labels
 
 def predict_ensemble(models, dataset, channel_starts = [0, 11880, 25880], batchsize=16, take_mode=False):
     
@@ -408,6 +398,119 @@ def predict_ensemble(models, dataset, channel_starts = [0, 11880, 25880], batchs
         
     return (tgt_stellar_labels, pred_stellar_labels, 
             sigma_stellar_labels, tgt_task_labels, pred_task_labels, chunk_sigmas, starting_indices)
+
+def plot_resid_violinplot(label_keys, tgt_stellar_labels, pred_stellar_labels, 
+                       sigma_stellar_labels=None,
+                       y_lims = [1000, 1, 1, 1, 10], savename=None):
+    fig, axes = plt.subplots(len(label_keys), 1, figsize=(10, len(label_keys)*2.7))
+
+    #if not hasattr(axes, 'len'):
+    #    axes = [axes]
+
+    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=1)
+    for i, ax in enumerate(axes):
+        label_key = label_keys[i]
+        # Make label pretty
+        if label_key=='teff':
+            label_key = 'T$_{\mathrm{eff}}$ [K]'
+        if label_key=='feh':
+            label_key = '[Fe/H]'
+        if label_key=='logg':
+            label_key = '$\log{g}$'
+        if label_key=='alpha':
+            label_key = r'[$\alpha$/H]'
+        if label_key=='vrad':
+            label_key = r'$v_{\mathrm{rad}}$ [km/s]'
+            
+        # Calculate residual
+        diff = pred_stellar_labels[:,i] - tgt_stellar_labels[:,i]
+        if sigma_stellar_labels is not None:
+
+            uncts = sigma_stellar_labels[:,i]
+            
+            max_uncts = 0.5*y_lims[i]
+            pts = ax.scatter(tgt_stellar_labels[:,i], 
+                        pred_stellar_labels[:,i] - tgt_stellar_labels[:,i], 
+                        alpha=0.5, s=20, zorder=1, c=sigma_stellar_labels[:,i], 
+                       vmin=0, vmax=max_uncts)
+            if 'eff' in label_key:
+                ax.annotate('$\widetilde{m}$=%0.0f $s$=%0.0f'% (np.mean(diff), np.std(diff)) + 
+                             ' $\sigma_{max}$=%0.0f' % (max_uncts),
+                            (0.67,0.82), size=4*len(label_keys), xycoords='axes fraction', 
+                            bbox=bbox_props)
+            elif 'rad' in label_key:
+                ax.annotate('$\widetilde{m}$=%0.1f $s$=%0.1f'% (np.mean(diff), np.std(diff)) + 
+                             ' $\sigma_{max}$=%0.1f' % (max_uncts),
+                            (0.62,0.82), size=4*len(label_keys), xycoords='axes fraction', 
+                            bbox=bbox_props)
+            else:
+                ax.annotate('$\widetilde{m}$=%0.2f $s$=%0.2f'% (np.mean(diff), np.std(diff)) + 
+                             ' $\sigma_{max}$=%0.2f' % (max_uncts),
+                            (0.6,0.82), size=4*len(label_keys), xycoords='axes fraction', 
+                            bbox=bbox_props)
+        else:
+            
+            box_positions = []
+            box_data = []
+            for tgt_val in np.unique(tgt_stellar_labels[:,i]):
+                indices = np.where(tgt_stellar_labels[:,i]==tgt_val)[0]
+                if len(indices)>2:
+                    box_positions.append(tgt_val)
+                    box_data.append(diff[indices])
+            box_width = np.mean(np.diff(box_positions))/2
+            
+            ax.violinplot(box_data, positions=box_positions, widths=box_width,
+                          showextrema=True, showmeans=False)
+            if 'eff' in label_key:
+                ax.annotate('$\widetilde{m}$=%0.0f $s$=%0.0f'% (np.median(diff), np.std(diff)),
+                            (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                            bbox=bbox_props)
+            elif 'rad' in label_key:
+                ax.annotate('$\widetilde{m}$=%0.1f $s$=%0.1f'% (np.median(diff), np.std(diff)),
+                            (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                            bbox=bbox_props)
+            else:
+                ax.annotate('$\widetilde{m}$=%0.2f $s$=%0.2f'% (np.median(diff), np.std(diff)),
+                        (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                        bbox=bbox_props)
+        ax.set_xlabel('%s' % (label_key), size=4*len(label_keys))
+        ax.set_ylabel(r'$\Delta$ %s' % label_key, size=4*len(label_keys))
+        ax.axhline(0, linewidth=2, c='black', linestyle='--')
+        ax.set_ylim(-y_lims[i], y_lims[i])
+        ax.set_xlim(np.min(box_positions)-box_width*2, np.max(box_positions)+box_width*2)
+        ax.set_yticks([-y_lims[i], -0.5*y_lims[i], 0, 0.5*y_lims[i], y_lims[i]])
+        
+        ax.text(box_positions[0]-2*box_width, 1.11*y_lims[i], 'n = ',
+               fontsize=3*len(label_keys))
+        ax_t = ax.secondary_xaxis('top')
+        ax_t.set_xticks(box_positions)
+        ax_t.set_xticklabels([len(d) for d in box_data])
+        ax_t.tick_params(axis='x', direction='in', labelsize=3*len(label_keys))
+        '''
+        for p, d in zip(box_positions, box_data):
+            ax.text(p, 0.7*y_lims[i], len(d))
+        '''
+        if 'eff' in label_key:
+            ax.set_xticks(box_positions)
+            ax.set_xticklabels(np.array(box_positions).astype(int))
+
+        ax.tick_params(labelsize=3*len(label_keys))
+        ax.grid()
+    
+    plt.tight_layout()
+    plt.subplots_adjust(hspace=.5)
+
+    if sigma_stellar_labels is not None:
+        plt.subplots_adjust(right=0.88)
+        cax = plt.axes([0.9, 0.07, 0.04, 0.9])
+        cbar = plt.colorbar(pts, cax=cax, ticks=[0, max_uncts])
+        cbar.ax.set_yticklabels(['0', '$>\sigma_{max}$'], size=4*len(label_keys))
+        
+    if savename is not None:
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
+                    bbox_inches='tight', pad_inches=0.05)
+    
+    plt.show()
 
 def plot_resid(label_keys, tgt_stellar_labels, pred_stellar_labels, sigma_stellar_labels=None,
               y_lims = [1000, 1, 1, 1, 10], savename=None):

@@ -255,7 +255,7 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
                                                                         wave_grid, 
                                                                         starting_indices, 
                                                                         pixel_indx)
-
+        
         # Apply augmentations and create array of task labels
         spectrum_chunk, task_labels = self.apply_augmentations(spectrum_chunk, centre_wave)
 

@@ -7,7 +7,7 @@ from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch
 from training_utils import (parseArguments, str2bool)
 from network import StarNet, build_starnet, load_model_state
 from analysis_fns import (plot_progress, plot_val_MAEs, predict_labels, 
-                          predict_ensemble, plot_resid, plot_resid_boxplot,
+                          predict_ensemble, plot_resid, plot_resid_violinplot,
                            plot_one_to_one, plot_wave_sigma)
 
 import configparser
@@ -148,25 +148,36 @@ print('The source validation set consists of %i spectra.' % (len(source_val_data
 print('The target training set consists of %i spectra.' % (len(target_train_dataset)))
 print('The target validation set consists of %i spectra.' % (len(target_val_dataset)))
 
+# Plot the training progress
 plot_progress(losses, model.module.tasks, 
-              y_lims=[(1,3),(0.,2),(0.0,0.7),(0,0.07),(0,0.5),(0,0.05),(0,0.3),(0,0.3),(0,0.2)],
+              y_lims=[(1,12),(0.,4),(0.0,0.7),(0,0.07),(0,0.01),(0,1.),(0,0.3),(0,0.3),(0,0.2)],
              savename=os.path.join(figs_dir, '%s_train_progress.png'%model_name))
 
 plot_val_MAEs(losses, multimodal_keys+unimodal_keys, 
-              y_lims=[(0.,200.), (0.,0.1), (0.,0.25), (0.,.1), (0.,0.2), (0.,30)],
+              y_lims=[(0.,200.), (0.,0.2), (0.,0.4), (0.,.6), (0,40)],
              savename=os.path.join(figs_dir, '%s_val_progress.png'%model_name))
 
 
 (tgt_stellar_labels, pred_stellar_labels, 
 sigma_stellar_labels) = predict_labels(model, source_train_dataset, device=device, take_mode=True)
 
-plot_resid_boxplot(multimodal_keys, tgt_stellar_labels, pred_stellar_labels,
-                   y_lims=[300, 0.6, 1, 0.2],
-                   savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
+# Predict on source
+(tgt_mm_labels, tgt_um_labels, 
+ pred_mm_labels, pred_um_labels) = predict_labels(model, source_train_dataset, 
+                                                  device=device, take_mode=True, 
+                                                  combine_batch_probs=True)
+# Save a plot
+plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
+                      y_lims=[1000, 1.2, 1.5, 0.8], 
+                      savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
 
-(tgt_stellar_labels, pred_stellar_labels, 
-sigma_stellar_labels) = predict_labels(model, target_train_dataset, device=device, take_mode=True)
+# Predict on target
+(tgt_mm_labels, tgt_um_labels, 
+ pred_mm_labels, pred_um_labels) = predict_labels(model, target_train_dataset, 
+                                                  device=device, take_mode=True, 
+                                                  combine_batch_probs=True)
 
-plot_resid_boxplot(multimodal_keys, tgt_stellar_labels, pred_stellar_labels,
-                   y_lims=[300, 0.6, 1, 0.2],
-                   savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
+# Save a plot
+plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
+                      y_lims=[1000, 1.2, 1.5, 0.8], 
+                      savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
