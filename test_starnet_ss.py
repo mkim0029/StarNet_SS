@@ -162,6 +162,10 @@ plot_val_MAEs(losses, multimodal_keys+unimodal_keys,
  pred_mm_labels, pred_um_labels) = predict_labels(model, source_train_dataset, 
                                                   device=device, take_mode=True, 
                                                   combine_batch_probs=True)
+# Save predictions
+np.save(os.path.join(results_dir, '%s_source_mm_preds.npy'%model_name), pred_mm_labels)
+np.save(os.path.join(results_dir, '%s_source_mm_tgts.npy'%model_name), tgt_mm_labels)
+
 # Save a plot
 plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
                       y_lims=[1000, 1.2, 1.5, 0.8], 
@@ -172,6 +176,10 @@ plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
  pred_mm_labels, pred_um_labels) = predict_labels(model, target_train_dataset, 
                                                   device=device, take_mode=True, 
                                                   combine_batch_probs=True)
+
+# Save predictions
+np.save(os.path.join(results_dir, '%s_target_mm_preds.npy'%model_name), pred_mm_labels)
+np.save(os.path.join(results_dir, '%s_target_mm_tgts.npy'%model_name), tgt_mm_labels)
 
 # Save a plot
 plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
