@@ -313,7 +313,7 @@ def determine_chunk_weights(model, dataset, device):
                 
                 mm_loss = torch.nn.NLLLoss(reduction='none')(model_outputs['multimodal labels'][i], 
                                                              tgt_class)
-                batch_losses.append(mm_loss.data.numpy())
+                batch_losses.append(mm_loss.cpu().data.numpy())
             NLL_losses.append(batch_losses)
             
         # Take average across samples
@@ -323,4 +323,4 @@ def determine_chunk_weights(model, dataset, device):
         # Weights are inverse to the negative-log-likelihood
         chunk_weights = 1/NLL_losses
         chunk_weights /= np.sum(chunk_weights, axis=1, keepdims=True)
-    return batch['pixel_indx'][:,0].data.numpy(), chunk_weights
+    return batch['pixel_indx'][:,0].cpu().data.numpy(), chunk_weights
