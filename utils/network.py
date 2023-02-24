@@ -346,8 +346,7 @@ class StarNet(torch.nn.Module):
                       take_batch_mode=False, chunk_indices=None, chunk_weights=None):
         '''Convert probabilities into labels using a weighted sum and the multimodal values.'''
         labels = []
-        for cla, c_vals in zip(classes,
-                               self.mutlimodal_vals):
+        for i, (cla, c_vals) in enumerate(zip(classes, self.mutlimodal_vals)):
 
             #c_vals = torch.tensor(c_vals).to(cla.device)
             
@@ -357,7 +356,6 @@ class StarNet(torch.nn.Module):
             if combine_batch_probs:
                 # This batch all came from the same spectrum, so we can 
                 # add the predicted probability distributions
-                print('a', chunk_weights)
                 if chunk_weights is not None:
                     # Take weighted average based on chunk location
                     batch_weights = torch.tensor([chunk_weights[i, chunk_indices==indx] for indx in batch_indices])

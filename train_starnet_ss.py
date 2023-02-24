@@ -1,5 +1,3 @@
-#From 5, minor changes to head architecture
-
 import os
 # Directory of training script
 cur_dir = os.path.dirname(__file__)
@@ -344,7 +342,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                 
     # Determine weighting of each chunk based on source dataset
     chunk_indices, chunk_weights = determine_chunk_weights(model, 
-                                                           source_val_dataset, 
+                                                           source_train_dataset, 
                                                            device)
     torch.save({'batch_iters': cur_iter,
                 'losses': losses,

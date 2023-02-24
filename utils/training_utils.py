@@ -2,6 +2,13 @@ import torch
 import argparse
 from torch.optim.lr_scheduler import LambdaLR
 import math
+import numpy as np
+
+import sys
+import os
+cur_dir = os.path.dirname(__file__)
+sys.path.append(os.path.join(cur_dir,'utils'))
+from data_loader import batch_to_device
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
