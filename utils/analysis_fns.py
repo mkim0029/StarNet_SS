@@ -299,8 +299,8 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
                                       take_mode=take_mode,
                                       combine_batch_probs=combine_batch_probs,
                                       take_batch_mode=take_batch_mode,
-                                      chunk_indices=chunk_indices, 
-                                      chunk_weights=chunk_weights)
+                                      chunk_indices=chunk_indices.to(device), 
+                                      chunk_weights=chunk_weights.to(device))
             except AttributeError:
                 model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
                                              batch['pixel_indx'].squeeze(0),
@@ -308,8 +308,8 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
                                              take_mode=take_mode,
                                              combine_batch_probs=combine_batch_probs,
                                              take_batch_mode=take_batch_mode,
-                                             chunk_indices=chunk_indices, 
-                                             chunk_weights=chunk_weights)
+                                             chunk_indices=chunk_indices.to(device), 
+                                             chunk_weights=chunk_weights.to(device))
 
             # Take average from all spectrum chunk predictions
             pred_mm_labels.append(np.mean(model_outputs['multimodal labels'].data.cpu().numpy(), axis=0))
