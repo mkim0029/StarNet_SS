@@ -264,3 +264,56 @@ def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
         losses_cp['val_tgt_'+label_key].append(float(tgt_val))
     
     return losses_cp
+
+def determine_chunk_weights(model, dataset, device):
+    
+    print('Determining weighting based on %i spectra...' % (len(dataset)))
+    try:
+        model.eval_mode()
+        num_mm_labels = model.num_mm_labels
+    except AttributeError:
+        model.module.eval_mode()
+        num_mm_labels = model.module.num_mm_labels
+    
+    NLL_losses = []
+    with torch.no_grad():
+        # Loop through spectra in dataset
+        for indx in range(len(dataset)):
+            batch = dataset.__getitem__(indx)
+            batch = batch_to_device(batch, device)
+            
+            # Collect target data
+            try:
+                tgt_classes = model.multimodal_to_class(batch['multimodal labels'].unsqueeze(0))
+            except AttributeError:
+                tgt_classes = model.module.multimodal_to_class(batch['multimodal labels'].unsqueeze(0))
+            
+            # Perform forward propagation
+            try:
+                model_outputs = model(batch['spectrum chunks'].squeeze(0), 
+                                      batch['pixel_indx'].squeeze(0),
+                                      norm_in=True, denorm_out=False)
+
+            except AttributeError:
+                model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
+                                             batch['pixel_indx'].squeeze(0),
+                                             norm_in=True, denorm_out=False)
+            
+            batch_losses = []
+            for i in range(num_mm_labels):
+                # Repeat target class for each chunk
+                tgt_class = a=tgt_classes[i].repeat(model_outputs['multimodal labels'][i].shape[0])
+                
+                mm_loss = torch.nn.NLLLoss(reduction='none')(model_outputs['multimodal labels'][i], 
+                                                             tgt_class)
+                batch_losses.append(mm_loss.data.numpy())
+            NLL_losses.append(batch_losses)
+            
+        # Take average across samples
+        NLL_losses = np.array(NLL_losses)
+        NLL_losses = np.mean(NLL_losses, axis=0)
+        
+        # Weights are inverse to the negative-log-likelihood
+        chunk_weights = 1/NLL_losses
+        chunk_weights /= np.sum(chunk_weights, axis=1, keepdims=True)
+    return batch['pixel_indx'][:,0].data.numpy(), chunk_weights

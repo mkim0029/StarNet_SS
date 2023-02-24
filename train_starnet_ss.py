@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.path.join(cur_dir,'utils'))
 from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch_to_device
 from training_utils import (parseArguments,CosineSimilarityLoss, run_iter, 
-                            str2bool, compare_val_sample)
+                            str2bool, compare_val_sample, determine_chunk_weights)
 from network import StarNet, build_starnet, load_model_state
 
 import configparser
@@ -95,10 +95,10 @@ lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=in
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, losses, cur_iter = load_model_state(model, 
-                                                      model_filename, 
-                                                      optimizer, 
-                                                      lr_scheduler)
+model, losses, cur_iter, chunk_indices, chunk_weights = load_model_state(model,
+                                                                         model_filename, 
+                                                                         optimizer, 
+                                                                         lr_scheduler)
 
 # Multi GPUs
 model = torch.nn.parallel.DataParallel(model, device_ids=list(range(num_gpus)), dim=0)
@@ -341,6 +341,20 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                             model_filename)
                 # Finish training
                 break 
+                
+    # Determine weighting of each chunk based on source dataset
+    chunk_indices, chunk_weights = determine_chunk_weights(model, 
+                                                           source_val_dataset, 
+                                                           device)
+    torch.save({'batch_iters': cur_iter,
+                'losses': losses,
+                'optimizer' : optimizer.state_dict(),
+                'lr_scheduler' : lr_scheduler.state_dict(),
+                'model' : model.module.state_dict(),
+                'classifier models': [net.state_dict() for net in model.module.label_classifiers],
+               'chunk_indices' : chunk_indices,
+               'chunk_weights' : chunk_weights},
+               model_filename)
 
 # Run the training
 if __name__=="__main__":

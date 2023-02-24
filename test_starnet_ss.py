@@ -69,7 +69,8 @@ model = build_starnet(config, device, model_name, mutlimodal_vals)
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, losses, cur_iter = load_model_state(model, model_filename)
+model, losses, cur_iter, chunk_indices, chunk_weights = load_model_state(model,
+                                                                         model_filename)
 
 # Multi GPUs
 model = torch.nn.parallel.DataParallel(model, device_ids=list(range(num_gpus)), dim=0)
@@ -161,7 +162,9 @@ plot_val_MAEs(losses, multimodal_keys+unimodal_keys,
 (tgt_mm_labels, tgt_um_labels, 
  pred_mm_labels, pred_um_labels) = predict_labels(model, source_train_dataset, 
                                                   device=device, take_mode=False, 
-                                                  combine_batch_probs=True)
+                                                  combine_batch_probs=True,
+                                                 chunk_indices=torch.tensor(chunk_indices),
+                                                  chunk_weights=torch.tensor(chunk_weights))
 # Save predictions
 np.save(os.path.join(results_dir, '%s_source_mm_preds.npy'%model_name), pred_mm_labels)
 np.save(os.path.join(results_dir, '%s_source_mm_tgts.npy'%model_name), tgt_mm_labels)
@@ -175,7 +178,9 @@ plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
 (tgt_mm_labels, tgt_um_labels, 
  pred_mm_labels, pred_um_labels) = predict_labels(model, target_train_dataset, 
                                                   device=device, take_mode=False, 
-                                                  combine_batch_probs=True)
+                                                  combine_batch_probs=True,
+                                                 chunk_indices=torch.tensor(chunk_indices),
+                                                  chunk_weights=torch.tensor(chunk_weights))
 
 # Save predictions
 np.save(os.path.join(results_dir, '%s_target_mm_preds.npy'%model_name), pred_mm_labels)

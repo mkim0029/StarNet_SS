@@ -266,7 +266,9 @@ def plot_label_MAE(losses, label_keys, y_lims=[(0,1)], x_lim=None,
     plt.show()
     
     
-def predict_labels(model, dataset, device, batchsize=16, take_mode=False, combine_batch_probs=False):
+def predict_labels(model, dataset, device, batchsize=16, take_mode=False, 
+                   combine_batch_probs=False, take_batch_mode=False,
+                   chunk_indices=None, chunk_weights=None):
     
     print('Predicting on %i spectra...' % (len(dataset)))
     try:
@@ -294,14 +296,20 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False, combin
                 model_outputs = model(batch['spectrum chunks'].squeeze(0), 
                                       batch['pixel_indx'].squeeze(0),
                                       norm_in=True, denorm_out=True,
-                                     take_mode=take_mode,
-                                      combine_batch_probs=combine_batch_probs)
+                                      take_mode=take_mode,
+                                      combine_batch_probs=combine_batch_probs,
+                                      take_batch_mode=take_batch_mode,
+                                      chunk_indices=chunk_indices, 
+                                      chunk_weights=chunk_weights)
             except AttributeError:
                 model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
-                                      batch['pixel_indx'].squeeze(0),
-                                      norm_in=True, denorm_out=True,
-                                     take_mode=take_mode,
-                                            combine_batch_probs=combine_batch_probs)
+                                             batch['pixel_indx'].squeeze(0),
+                                             norm_in=True, denorm_out=True,
+                                             take_mode=take_mode,
+                                             combine_batch_probs=combine_batch_probs,
+                                             take_batch_mode=take_batch_mode,
+                                             chunk_indices=chunk_indices, 
+                                             chunk_weights=chunk_weights)
 
             # Take average from all spectrum chunk predictions
             pred_mm_labels.append(np.mean(model_outputs['multimodal labels'].data.cpu().numpy(), axis=0))

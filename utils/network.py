@@ -341,7 +341,9 @@ class StarNet(torch.nn.Module):
             classes.append(torch.cat([torch.where(vals==labels[j,i])[0] for j in range(len(labels))]))
         return classes
     
-    def class_to_label(self, classes, take_mode=False, combine_batch_probs=False):
+    def class_to_label(self, classes, batch_indices, take_mode=False,
+                       combine_batch_probs=False,
+                      take_batch_mode=False, chunk_indices=None, chunk_weights=None):
         '''Convert probabilities into labels using a weighted sum and the multimodal values.'''
         labels = []
         for cla, c_vals in zip(classes,
@@ -355,8 +357,16 @@ class StarNet(torch.nn.Module):
             if combine_batch_probs:
                 # This batch all came from the same spectrum, so we can 
                 # add the predicted probability distributions
-                prob = torch.sum(prob, dim=0, keepdim=True)
-                prob = prob / torch.sum(prob)
+                if chunk_weights is not None:
+                    # Take weighted average based on chunk location
+                    batch_weights = torch.tensor([chunk_weights[i, chunk_indices==indx] for indx in batch_indices])
+                    prob = torch.sum(prob*batch_weights.unsqueeze(1), dim=0,
+                                     keepdim=True)/torch.sum(batch_weights)
+                else:
+                    # Take simple average
+                    prob = torch.mean(prob, dim=0, keepdim=True)
+            elif take_batch_mode:
+                prob = torch.max(prob, dim=0, keepdim=True)[0]
             
             if take_mode:
                 # Take the class with the highest probability
@@ -461,7 +471,8 @@ class StarNet(torch.nn.Module):
         
     def forward(self, x, pixel_indx=None, norm_in=True, 
                 denorm_out=False, take_mode=False, combine_batch_probs=False,
-                return_feats=False, return_feats_only=False):
+                take_batch_mode=False, return_feats=False, return_feats_only=False,
+                chunk_indices=None, chunk_weights=None):
         
         if norm_in:
             # Normalize spectra
@@ -502,8 +513,12 @@ class StarNet(torch.nn.Module):
                 mm_labels = [classifier(x) for classifier in self.label_classifiers]
                 if denorm_out:
                     # Denormalize labels
-                    mm_labels = self.class_to_label(mm_labels, take_mode=take_mode,
-                                                    combine_batch_probs=combine_batch_probs)
+                    mm_labels = self.class_to_label(mm_labels, pixel_indx,
+                                                    take_mode=take_mode,
+                                                    combine_batch_probs=combine_batch_probs,
+                                                    take_batch_mode=take_batch_mode,
+                                                   chunk_indices=chunk_indices,
+                                                    chunk_weights=chunk_weights)
                 return_dict['multimodal labels'] = mm_labels
                 
             if self.num_um_labels>0:
@@ -601,10 +616,18 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
         
         for net, state in zip(model.label_classifiers, checkpoint['classifier models']):
             net.load_state_dict(state)
+            
+        # Load weighting for inference
+        if 'chunk_indices' in checkpoint.keys():
+            chunk_indices = checkpoint['chunk_indices']
+            chunk_weights = checkpoint['chunk_weights']
+        else:
+            chunk_indices = None
+            chunk_weights = None
         
     else:
         print('\nStarting fresh model to train...')
         losses = defaultdict(list)
         cur_iter = 1
         
-    return model, losses, cur_iter
+    return model, losses, cur_iter, chunk_indices, chunk_weights
