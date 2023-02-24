@@ -629,4 +629,7 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
         losses = defaultdict(list)
         cur_iter = 1
         
+        chunk_indices = None
+        chunk_weights = None
+        
     return model, losses, cur_iter, chunk_indices, chunk_weights
