@@ -59,6 +59,7 @@ def batch_to_device(batch, device):
             for i in range(len(batch[k])):
                 batch[k][i] = batch[k][i].to(device)
         else:
+            print(k)
             batch[k] = batch[k].to(device)
     return batch
     
