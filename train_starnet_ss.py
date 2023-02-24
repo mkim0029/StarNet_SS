@@ -340,7 +340,30 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                 # Finish training
                 break 
                 
+                
     # Determine weighting of each chunk based on source dataset
+    source_train_dataset = WeaveSpectraDatasetInference(source_data_file, 
+                                                      dataset='train', 
+                                                      wave_grid_file=wave_grid_file, 
+                                                      multimodal_keys=multimodal_keys,
+                                                      unimodal_keys=unimodal_keys,
+                                                      continuum_normalize=continuum_normalize,
+                                                      divide_by_median=divide_by_median,
+                                                      num_fluxes=model.module.num_fluxes, 
+                                                      tasks=model.module.tasks, 
+                                                      task_means=model.module.task_means.cpu().numpy(), 
+                                                      task_stds=model.module.task_stds.cpu().numpy(),
+                                                      median_thresh=0., std_min=std_min, 
+                                                      random_chunk=random_chunk,
+                                                      overlap=overlap,
+                                                      channel_indices=channel_indices)
+
+    source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset, 
+                                                        batch_size=1, 
+                                                        shuffle=False, 
+                                                        num_workers=3,
+                                                        pin_memory=True)
+    
     chunk_indices, chunk_weights = determine_chunk_weights(model, 
                                                            source_train_dataset, 
                                                            device)
