@@ -342,7 +342,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                 
                 
     # Determine weighting of each chunk based on source dataset
-    source_train_dataset = WeaveSpectraDatasetInference(source_data_file, 
+    source_train_dataset2 = WeaveSpectraDatasetInference(source_data_file, 
                                                       dataset='train', 
                                                       wave_grid_file=wave_grid_file, 
                                                       multimodal_keys=multimodal_keys,
@@ -358,7 +358,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                                                       overlap=overlap,
                                                       channel_indices=channel_indices)
 
-    source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset, 
+    source_train_dataloader2 = torch.utils.data.DataLoader(source_train_dataset2, 
                                                         batch_size=1, 
                                                         shuffle=False, 
                                                         num_workers=3,
