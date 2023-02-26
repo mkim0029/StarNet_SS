@@ -357,15 +357,9 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                                                       random_chunk=random_chunk,
                                                       overlap=overlap,
                                                       channel_indices=channel_indices)
-
-    source_train_dataloader2 = torch.utils.data.DataLoader(source_train_dataset2, 
-                                                        batch_size=1, 
-                                                        shuffle=False, 
-                                                        num_workers=3,
-                                                        pin_memory=True)
     
     chunk_indices, chunk_weights = determine_chunk_weights(model, 
-                                                           source_train_dataset, 
+                                                           source_train_dataset2, 
                                                            device)
     torch.save({'batch_iters': cur_iter,
                 'losses': losses,
