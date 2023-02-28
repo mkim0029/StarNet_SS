@@ -16,6 +16,11 @@ def apply_bias(spectrum, bias_mean, bias_std):
     spectrum += bias
     return spectrum, bias
 
+def apply_sine(spectrum, amp, period, phi):
+    # Add to the spectrum
+    spectrum += amp*np.sin(np.linspace(0,2*np.pi*period, len(spectrum)) + phi)
+    return spectrum
+
 def add_noise(x, noise_factor=0.07):
 
     if type(noise_factor) == float or type(noise_factor) == int or type(noise_factor) == np.float64:
@@ -165,8 +170,9 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
             # Determine noise factor
             noise_factor = np.random.uniform(0.0001, self.max_noise_factor)
             spectrum = add_noise(spectrum, noise_factor=noise_factor)
-            
+                    
         # Perform augmentations according to tasks
+        sine_aug = False
         task_labels = []
         for t, tm, ts in zip(self.tasks, self.task_means, self.task_stds):
             if t.lower()=='wavelength':
@@ -180,6 +186,21 @@ class WeaveSpectraDataset(torch.utils.data.Dataset):
             if t.lower()=='snr':
                 snr = calc_snr(spectrum[spectrum>0.1])
                 task_labels.append(snr)
+            if t.lower()=='sine amp':
+                sine_amp = np.abs(np.random.normal(tm, ts))
+                task_labels.append(sine_amp)
+                apply_sine = True
+            if t.lower()=='sine period':
+                sine_period = np.abs(np.random.normal(tm, ts))
+                task_labels.append(sine_period)
+                apply_sine = True
+            if t.lower()=='sine phi':
+                sine_phi = np.random.normal(tm, ts)
+                task_labels.append(sine_phi)
+                apply_sine = True
+            
+        if sine_aug:
+            spectrum = apply_sine(spectrum, sine_amp, sine_period, sine_phi)
                 
         if self.apply_dropout:
             # Dropout random chunks of the spectrum
