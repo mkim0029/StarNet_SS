@@ -317,9 +317,9 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
                 pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))
 
         tgt_mm_labels = np.vstack(tgt_mm_labels)
-        tgt_um_labels = np.vstack(tgt_um_labels)
+        pred_mm_labels = np.vstack(pred_mm_labels)
         if len(tgt_um_labels)>0:
-            pred_mm_labels = np.vstack(pred_mm_labels)
+            tgt_um_labels = np.vstack(tgt_um_labels)
             pred_um_labels = np.vstack(pred_um_labels)
 
         
