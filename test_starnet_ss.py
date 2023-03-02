@@ -160,7 +160,7 @@ plot_val_MAEs(losses, multimodal_keys+unimodal_keys,
 
 # Predict on source
 (tgt_mm_labels, tgt_um_labels, 
- pred_mm_labels, pred_um_labels) = predict_labels(model, source_train_dataset, 
+ pred_mm_labels, pred_um_labels) = predict_labels(model, source_val_dataset, 
                                                   device=device, take_mode=False, 
                                                   combine_batch_probs=True,
                                                  chunk_indices=torch.tensor(chunk_indices),
@@ -176,7 +176,7 @@ plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
 
 # Predict on target
 (tgt_mm_labels, tgt_um_labels, 
- pred_mm_labels, pred_um_labels) = predict_labels(model, target_train_dataset, 
+ pred_mm_labels, pred_um_labels) = predict_labels(model, target_val_dataset, 
                                                   device=device, take_mode=False, 
                                                   combine_batch_probs=True,
                                                  chunk_indices=torch.tensor(chunk_indices),
