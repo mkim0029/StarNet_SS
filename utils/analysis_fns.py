@@ -603,7 +603,7 @@ def plot_resid(label_keys, tgt_stellar_labels, pred_stellar_labels, sigma_stella
         cbar.ax.set_yticklabels(['0', '$>\sigma_{max}$'], size=4*len(label_keys))
         
     if savename is not None:
-        plt.savefig(savename, facecolor='white', transparent=False, dpi=200,
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
                     bbox_inches='tight', pad_inches=0.05)
     
     plt.show()
