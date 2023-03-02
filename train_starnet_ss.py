@@ -90,7 +90,7 @@ lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=in
                                                    pct_start=0.05, anneal_strategy='cos', 
                                                    cycle_momentum=True, base_momentum=0.85, 
                                                    max_momentum=0.95, div_factor=25.0, 
-                                                   final_div_factor=10000.0, three_phase=False)
+                                                   final_div_factor=final_lr_factor, three_phase=False)
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
