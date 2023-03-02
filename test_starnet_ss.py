@@ -8,7 +8,7 @@ from training_utils import (parseArguments, str2bool)
 from network import StarNet, build_starnet, load_model_state
 from analysis_fns import (plot_progress, plot_val_MAEs, predict_labels, 
                           predict_ensemble, plot_resid, plot_resid_violinplot,
-                           plot_one_to_one, plot_wave_sigma)
+                           plot_one_to_one, plot_wave_sigma, plot_resid)
 
 import configparser
 import time
@@ -187,6 +187,11 @@ np.save(os.path.join(results_dir, '%s_target_mm_preds.npy'%model_name), pred_mm_
 np.save(os.path.join(results_dir, '%s_target_mm_tgts.npy'%model_name), tgt_mm_labels)
 
 # Save a plot
-plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
-                      y_lims=[1000, 1.2, 1.5, 0.8], 
-                      savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
+if len(np.unique(tgt_mm_labels[:,0]))<40:
+    plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
+                          y_lims=[1000, 1.2, 1.5, 0.8], 
+                          savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
+else:
+    plot_resid(multimodal_keys, tgt_mm_labels, pred_mm_labels,
+               y_lims = [1000, 1.2, 1.5, 0.8], 
+               savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
