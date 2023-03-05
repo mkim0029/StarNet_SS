@@ -12,6 +12,9 @@ import matplotlib.gridspec as gridspec
 import matplotlib.lines as lines
 from string import ascii_lowercase
 
+from scipy import stats
+import scipy.optimize as opt
+
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "serif",
@@ -265,16 +268,113 @@ def plot_label_MAE(losses, label_keys, y_lims=[(0,1)], x_lim=None,
         
     plt.show()
     
+# Define function that generates values of a potentially trucated normal
+# probability density function (PDF)
+def truncnorm_pdf(xvals, mu=300, sigma=100, min_cutoff=None, max_cutoff=None):
+    '''
+    --------------------------------------------------------------------
+    Generate pdf values from the truncated normal pdf with mean mu and
+    standard deviation sigma. If the cutoff is finite, then the PDF
+    values are inflated upward to reflect the zero probability on values
+    above the cutoff. If there is no cutoff given or if it is given as
+    infinity, this function does the same thing as
+    sp.stats.norm.pdf(x, loc=mu, scale=sigma).
+    --------------------------------------------------------------------
+    INPUTS:
+    xvals  = (N,) vector, values of the normally distributed random
+             variable
+    mu     = scalar, mean of the normally distributed random variable
+    sigma  = scalar > 0, standard deviation of the normally distributed
+             random variable
+    cutoff = scalar or string, ='None' if no cutoff is given, otherwise
+             is scalar upper bound value of distribution. Values above
+             this value have zero probability
+    
+    OTHER FUNCTIONS AND FILES CALLED BY THIS FUNCTION: None
+    
+    OBJECTS CREATED WITHIN FUNCTION:
+    prob_notcut = scalar 
+    pdf_vals = (N,) vector, normal PDF values for mu and sigma
+               corresponding to xvals data
+    
+    FILES CREATED BY THIS FUNCTION: None
+    
+    RETURNS: pdf_vals
+    --------------------------------------------------------------------
+    '''
+    prob_notcut = (stats.norm.cdf(max_cutoff, loc=mu, scale=sigma) -
+                   stats.norm.cdf(min_cutoff, loc=mu, scale=sigma))
+            
+    pdf_vals = ((1/(sigma * np.sqrt(2 * np.pi)) *
+                 np.exp( - (xvals - mu)**2 / (2 * sigma**2))) /
+                prob_notcut)
+    return np.clip(pdf_vals, 1e-8, None)
+
+# Define log likelihood function for the normal distribution
+def log_lik_truncnorm(xvals, mu, sigma, min_cutoff, max_cutoff):
+    pdf_vals = truncnorm_pdf(xvals, mu, sigma, min_cutoff, max_cutoff)
+    ln_pdf_vals = np.log(pdf_vals)
+    log_lik_val = ln_pdf_vals.sum()
+    return log_lik_val
+
+def crit(params, *args):
+    mu, sigma = params
+    xvals, min_cutoff, max_cutoff = args
+
+    log_lik_val = log_lik_truncnorm(xvals, mu, sigma, min_cutoff, max_cutoff)
+    neg_log_lik_val = -log_lik_val
+    
+    return neg_log_lik_val
+
+def estimate_gauss(vals, preds, N_kde=1000, N_test=1000):
+
+    kde_data = []
+    for val, prob in zip(vals, preds):
+        n = int(np.rint(prob*N_kde))
+        if n>0:
+            kde_data.append(np.ones((n,))*val)   
+    kde_data = np.concatenate(kde_data)
+    
+    # Estimate mu and sigma
+    mu_init = vals[np.argmax(preds)]
+    sig_init = np.mean(np.diff(vals))/2
+    params_init = np.array([mu_init, sig_init])
+    '''
+    results = opt.minimize(crit, params_init, 
+                           args=(kde_data, np.min(vals), np.max(vals)), 
+                           method='SLSQP',
+                           bounds=((np.min(vals)-sig_init, np.max(vals)+sig_init), 
+                                   (1e-10, None)))
+    '''
+    minimizer_kwargs = {"method": "L-BFGS-B", 
+                        'args': (kde_data, np.min(vals), np.max(vals)),
+                        'bounds': ((np.min(vals)-sig_init, np.max(vals)+sig_init), 
+                                   (1e-10, None))}
+    results = opt.basinhopping(crit, params_init, 
+                               minimizer_kwargs=minimizer_kwargs,
+                               niter=100, niter_success=15)
+    
+    
+    
+    mu_est, sigma_est = results.x
+    print(results)
+        
+    return mu_est, sigma_est
     
 def predict_labels(model, dataset, device, batchsize=16, take_mode=False, 
                    combine_batch_probs=False, take_batch_mode=False,
-                   chunk_indices=None, chunk_weights=None):
+                   chunk_indices=None, chunk_weights=None, est_gauss=False):
     
     print('Predicting on %i spectra...' % (len(dataset)))
     try:
         model.eval_mode()
     except AttributeError:
         model.module.eval_mode()
+        
+    if est_gauss:
+        denorm_out = False
+    else:
+        denorm_out = True
     
     tgt_mm_labels = []
     tgt_um_labels = []
@@ -295,26 +395,57 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
                 # Perform forward propagation
                 model_outputs = model(batch['spectrum chunks'].squeeze(0), 
                                       batch['pixel_indx'].squeeze(0),
-                                      norm_in=True, denorm_out=True,
+                                      norm_in=True, denorm_out=denorm_out,
                                       take_mode=take_mode,
                                       combine_batch_probs=combine_batch_probs,
                                       take_batch_mode=take_batch_mode,
                                       chunk_indices=chunk_indices.to(device), 
                                       chunk_weights=chunk_weights.to(device))
+                mutlimodal_vals = model.mutlimodal_vals
             except AttributeError:
                 model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
                                              batch['pixel_indx'].squeeze(0),
-                                             norm_in=True, denorm_out=True,
+                                             norm_in=True, denorm_out=denorm_out,
                                              take_mode=take_mode,
                                              combine_batch_probs=combine_batch_probs,
                                              take_batch_mode=take_batch_mode,
                                              chunk_indices=chunk_indices.to(device), 
                                              chunk_weights=chunk_weights.to(device))
+                mutlimodal_vals = model.module.mutlimodal_vals
+                
+            # Use probabilities to estimate gaussian mean and std
+            if est_gauss:
+                labels = []
+                sigmas = []
+                for i, (cla, c_vals) in enumerate(zip(model_outputs['multimodal labels'], 
+                                                      mutlimodal_vals)):
+                    # Turn predictions in "probabilities"
+                    prob = torch.exp(cla)
 
-            # Take average from all spectrum chunk predictions
-            pred_mm_labels.append(np.mean(model_outputs['multimodal labels'].data.cpu().numpy(), axis=0))
-            if len(batch['unimodal labels'])>0:
-                pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))
+                    if combine_batch_probs:
+                        # This batch all came from the same spectrum, so we can 
+                        # add the predicted probability distributions
+                        if chunk_weights is not None:
+                            # Take weighted average based on chunk location
+                            batch_weights = torch.tensor([chunk_weights[i, chunk_indices==indx] for indx in batch['pixel_indx'].squeeze(0)]).to(device)
+                            prob = torch.sum(prob*batch_weights.unsqueeze(1), dim=0,
+                                             keepdim=True)/torch.sum(batch_weights)
+                            mu_est, sigma_est = estimate_gauss(c_vals.data.cpu().numpy(), 
+                                                               prob.data.cpu().numpy()[0], 
+                                                               N_kde=5000)
+                            print(mu_est, batch['multimodal labels'].data.cpu().numpy()[i])
+                            labels.append(mu_est)
+                            sigmas.append(sigma_est)
+                # Take average from all spectrum chunk predictions
+                pred_mm_labels.append(labels)
+                if len(batch['unimodal labels'])>0:
+                    pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))      
+                            
+            else:
+                # Take average from all spectrum chunk predictions
+                pred_mm_labels.append(np.mean(model_outputs['multimodal labels'].data.cpu().numpy(), axis=0))
+                if len(batch['unimodal labels'])>0:
+                    pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))
 
         tgt_mm_labels = np.vstack(tgt_mm_labels)
         pred_mm_labels = np.vstack(pred_mm_labels)
