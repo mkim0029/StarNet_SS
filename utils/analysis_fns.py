@@ -357,7 +357,6 @@ def estimate_gauss(vals, preds, N_kde=1000, N_test=1000):
     
     
     mu_est, sigma_est = results.x
-    print(results)
         
     return mu_est, sigma_est
     
@@ -433,7 +432,6 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
                             mu_est, sigma_est = estimate_gauss(c_vals.data.cpu().numpy(), 
                                                                prob.data.cpu().numpy()[0], 
                                                                N_kde=5000)
-                            print(mu_est, batch['multimodal labels'].data.cpu().numpy()[i])
                             labels.append(mu_est)
                             sigmas.append(sigma_est)
                 # Take average from all spectrum chunk predictions
