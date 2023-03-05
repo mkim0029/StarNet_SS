@@ -349,7 +349,7 @@ def estimate_gauss(vals, preds, N_kde=1000, N_test=1000):
     minimizer_kwargs = {"method": "L-BFGS-B", 
                         'args': (kde_data, np.min(vals), np.max(vals)),
                         'bounds': ((np.min(vals)-sig_init, np.max(vals)+sig_init), 
-                                   (1e-10, None))}
+                                   (1e-10, np.max(vals)-np.min(vals)))}
     results = opt.basinhopping(crit, params_init, 
                                minimizer_kwargs=minimizer_kwargs,
                                niter=10, niter_success=5)
