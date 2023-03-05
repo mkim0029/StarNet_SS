@@ -352,7 +352,7 @@ def estimate_gauss(vals, preds, N_kde=1000, N_test=1000):
                                    (1e-10, None))}
     results = opt.basinhopping(crit, params_init, 
                                minimizer_kwargs=minimizer_kwargs,
-                               niter=50, niter_success=10)
+                               niter=10, niter_success=5)
     
     
     
