@@ -426,6 +426,7 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
                         # add the predicted probability distributions
                         if chunk_weights is not None:
                             # Take weighted average based on chunk location
+                            print(chunk_weights.device, chunk_indices.device, batch['pixel_indx'].device)
                             batch_weights = torch.tensor([chunk_weights[i, chunk_indices==indx] for indx in batch['pixel_indx'].squeeze(0)]).to(device)
                             prob = torch.sum(prob*batch_weights.unsqueeze(1), dim=0,
                                              keepdim=True)/torch.sum(batch_weights)
