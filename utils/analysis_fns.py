@@ -383,8 +383,8 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
         # Loop through spectra in dataset
         for indx in range(len(dataset)):
             
-            if indx>10:
-                break
+            if indx%100:
+                print(indx)
             
             batch = dataset.__getitem__(indx)
             batch = batch_to_device(batch, device)
