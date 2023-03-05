@@ -382,6 +382,10 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
     with torch.no_grad():
         # Loop through spectra in dataset
         for indx in range(len(dataset)):
+            
+            if indx>30:
+                break
+            
             batch = dataset.__getitem__(indx)
             batch = batch_to_device(batch, device)
 
