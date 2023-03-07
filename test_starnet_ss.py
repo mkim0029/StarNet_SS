@@ -158,7 +158,7 @@ plot_progress(losses, model.module.tasks,
 plot_val_MAEs(losses, multimodal_keys+unimodal_keys, 
               y_lims=[(0.,600.), (0.,0.6), (0.,1.0), (0.,.4), (0,40)],
              savename=os.path.join(figs_dir, '%s_val_progress.png'%model_name))
-'''
+
 # Predict on source
 (tgt_mm_labels, tgt_um_labels, 
  pred_mm_labels, pred_um_labels) = predict_labels(model, source_val_dataset, 
@@ -182,20 +182,20 @@ plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
                                                   combine_batch_probs=True,
                                                  chunk_indices=torch.tensor(chunk_indices),
                                                 chunk_weights=torch.tensor(chunk_weights))
-
-(tgt_mm_labels2, tgt_um_labels2, 
- pred_mm_labels2, pred_um_labels2) = predict_labels(model, target_val_dataset, 
+'''
+(tgt_mm_labels, tgt_um_labels, 
+ pred_mm_labels, pred_um_labels) = predict_labels(model, target_val_dataset, 
                                                   device=device, take_mode=False, 
                                                   combine_batch_probs=True,
                                                  chunk_indices=torch.tensor(chunk_indices),
                                                 chunk_weights=torch.tensor(chunk_weights))
-
+'''
 pred_mm_labels = np.vstack((pred_mm_labels, pred_mm_labels2))
 tgt_mm_labels = np.vstack((tgt_mm_labels, tgt_mm_labels2))
-
+'''
 # Save predictions
-np.save(os.path.join(results_dir, '%s_target_mm_preds_all.npy'%model_name), pred_mm_labels)
-np.save(os.path.join(results_dir, '%s_target_mm_tgts_all.npy'%model_name), tgt_mm_labels)
+np.save(os.path.join(results_dir, '%s_target_mm_preds.npy'%model_name), pred_mm_labels)
+np.save(os.path.join(results_dir, '%s_target_mm_tgts.npy'%model_name), tgt_mm_labels)
 
 # Save a plot
 if len(np.unique(tgt_mm_labels[:,0]))<40:
