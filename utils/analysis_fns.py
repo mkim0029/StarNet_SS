@@ -398,20 +398,19 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
             if congregate:
                 try:
                     # Perform forward propagation
-                    model_outputs = model.congregate_model(src_batch['spectrum chunks'],
-                                                  src_batch['pixel_indx'], 
+                    model_outputs = model.congregate_model(batch['spectrum chunks'].unsqueeze(0),
+                                                  batch['pixel_indx'], 
                                                   norm_in=True, denorm_out=denorm_out, 
                                                   take_mode=take_mode)
 
                     mutlimodal_vals = model.mutlimodal_vals
                 except AttributeError:
-                    model_outputs = model.module.congregate_model(src_batch['spectrum chunks'],
-                                                      src_batch['pixel_indx'], 
+                    model_outputs = model.module.congregate_model(batch['spectrum chunks'].unsqueeze(0),
+                                                      batch['pixel_indx'], 
                                                       norm_in=True, denorm_out=denorm_out, 
                                                       take_mode=take_mode)
                     mutlimodal_vals = model.module.mutlimodal_vals
                 # Take average from all spectrum chunk predictions
-                print(model_outputs['multimodal labels'].shape)
                 pred_mm_labels.append(model_outputs['multimodal labels'].data.cpu().numpy()[0])
             else:
                 try:
@@ -463,11 +462,11 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
                     if len(batch['unimodal labels'])>0:
                         pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))      
 
-            else:
-                # Take average from all spectrum chunk predictions
-                pred_mm_labels.append(np.mean(model_outputs['multimodal labels'].data.cpu().numpy(), axis=0))
-                if len(batch['unimodal labels'])>0:
-                    pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))
+                else:
+                    # Take average from all spectrum chunk predictions
+                    pred_mm_labels.append(np.mean(model_outputs['multimodal labels'].data.cpu().numpy(), axis=0))
+                    if len(batch['unimodal labels'])>0:
+                        pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))
 
         tgt_mm_labels = np.vstack(tgt_mm_labels)
         pred_mm_labels = np.vstack(pred_mm_labels)
