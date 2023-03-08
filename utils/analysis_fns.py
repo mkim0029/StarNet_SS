@@ -362,7 +362,8 @@ def estimate_gauss(vals, preds, N_kde=1000, N_test=1000):
     
 def predict_labels(model, dataset, device, batchsize=16, take_mode=False, 
                    combine_batch_probs=False, take_batch_mode=False,
-                   chunk_indices=None, chunk_weights=None, est_gauss=False):
+                   chunk_indices=None, chunk_weights=None, est_gauss=False,
+                  congregate=False):
     
     print('Predicting on %i spectra...' % (len(dataset)))
     try:
@@ -394,55 +395,74 @@ def predict_labels(model, dataset, device, batchsize=16, take_mode=False,
             if len(batch['unimodal labels'])>0:
                 tgt_um_labels.append(batch['unimodal labels'].data.cpu().numpy())
 
-            try:
-                # Perform forward propagation
-                model_outputs = model(batch['spectrum chunks'].squeeze(0), 
-                                      batch['pixel_indx'].squeeze(0),
-                                      norm_in=True, denorm_out=denorm_out,
-                                      take_mode=take_mode,
-                                      combine_batch_probs=combine_batch_probs,
-                                      take_batch_mode=take_batch_mode,
-                                      chunk_indices=chunk_indices.to(device), 
-                                      chunk_weights=chunk_weights.to(device))
-                mutlimodal_vals = model.mutlimodal_vals
-            except AttributeError:
-                model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
-                                             batch['pixel_indx'].squeeze(0),
-                                             norm_in=True, denorm_out=denorm_out,
-                                             take_mode=take_mode,
-                                             combine_batch_probs=combine_batch_probs,
-                                             take_batch_mode=take_batch_mode,
-                                             chunk_indices=chunk_indices.to(device), 
-                                             chunk_weights=chunk_weights.to(device))
-                mutlimodal_vals = model.module.mutlimodal_vals
-                
-            # Use probabilities to estimate gaussian mean and std
-            if est_gauss:
-                labels = []
-                sigmas = []
-                for i, (cla, c_vals) in enumerate(zip(model_outputs['multimodal labels'], 
-                                                      mutlimodal_vals)):
-                    # Turn predictions in "probabilities"
-                    prob = torch.exp(cla)
+            if congregate:
+                try:
+                    # Perform forward propagation
+                    model_outputs = model.congregate_model(src_batch['spectrum chunks'],
+                                                  src_batch['pixel_indx'], 
+                                                  norm_in=True, denorm_out=denorm_out, 
+                                                  take_mode=take_mode)
 
-                    if combine_batch_probs:
-                        # This batch all came from the same spectrum, so we can 
-                        # add the predicted probability distributions
-                        if chunk_weights is not None:
-                            # Take weighted average based on chunk location
-                            batch_weights = torch.tensor([chunk_weights[i, chunk_indices==indx] for indx in batch['pixel_indx'].squeeze(0)]).to(device)
-                            prob = torch.sum(prob*batch_weights.unsqueeze(1), dim=0,
-                                             keepdim=True)/torch.sum(batch_weights)
-                            mu_est, sigma_est = estimate_gauss(c_vals.data.cpu().numpy(), 
-                                                               prob.data.cpu().numpy()[0], 
-                                                               N_kde=5000)
-                            labels.append(mu_est)
-                            sigmas.append(sigma_est)
+                    mutlimodal_vals = model.mutlimodal_vals
+                except AttributeError:
+                    model_outputs = model.module.congregate_model(src_batch['spectrum chunks'],
+                                                      src_batch['pixel_indx'], 
+                                                      norm_in=True, denorm_out=denorm_out, 
+                                                      take_mode=take_mode)
+                    mutlimodal_vals = model.module.mutlimodal_vals
                 # Take average from all spectrum chunk predictions
-                pred_mm_labels.append(labels)
-                if len(batch['unimodal labels'])>0:
-                    pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))      
-                            
+                print(model_outputs['multimodal labels'].shape)
+                pred_mm_labels.append(model_outputs['multimodal labels'].data.cpu().numpy()[0])
+            else:
+                try:
+                    # Perform forward propagation
+                    model_outputs = model(batch['spectrum chunks'].squeeze(0), 
+                                          batch['pixel_indx'].squeeze(0),
+                                          norm_in=True, denorm_out=denorm_out,
+                                          take_mode=take_mode,
+                                          combine_batch_probs=combine_batch_probs,
+                                          take_batch_mode=take_batch_mode,
+                                          chunk_indices=chunk_indices.to(device), 
+                                          chunk_weights=chunk_weights.to(device))
+                    mutlimodal_vals = model.mutlimodal_vals
+                except AttributeError:
+                    model_outputs = model.module(batch['spectrum chunks'].squeeze(0), 
+                                                 batch['pixel_indx'].squeeze(0),
+                                                 norm_in=True, denorm_out=denorm_out,
+                                                 take_mode=take_mode,
+                                                 combine_batch_probs=combine_batch_probs,
+                                                 take_batch_mode=take_batch_mode,
+                                                 chunk_indices=chunk_indices.to(device), 
+                                                 chunk_weights=chunk_weights.to(device))
+                    mutlimodal_vals = model.module.mutlimodal_vals
+                
+                # Use probabilities to estimate gaussian mean and std
+                if est_gauss:
+                    labels = []
+                    sigmas = []
+                    for i, (cla, c_vals) in enumerate(zip(model_outputs['multimodal labels'], 
+                                                          mutlimodal_vals)):
+                        # Turn predictions in "probabilities"
+                        prob = torch.exp(cla)
+
+                        if combine_batch_probs:
+                            # This batch all came from the same spectrum, so we can 
+                            # add the predicted probability distributions
+                            if chunk_weights is not None:
+                                # Take weighted average based on chunk location
+                                batch_weights = torch.tensor([chunk_weights[i, chunk_indices==indx] for indx in batch['pixel_indx'].squeeze(0)]).to(device)
+                                prob = torch.sum(prob*batch_weights.unsqueeze(1), dim=0,
+                                                 keepdim=True)/torch.sum(batch_weights)
+                                mu_est, sigma_est = estimate_gauss(c_vals.data.cpu().numpy(), 
+                                                                   prob.data.cpu().numpy()[0], 
+                                                                   N_kde=5000)
+                                labels.append(mu_est)
+                                sigmas.append(sigma_est)
+                    # Take average from all spectrum chunk predictions
+                    pred_mm_labels.append(labels)
+                    if len(batch['unimodal labels'])>0:
+                        pred_um_labels.append(np.mean(model_outputs['unimodal labels'].data.cpu().numpy(), axis=0))      
+
             else:
                 # Take average from all spectrum chunk predictions
                 pred_mm_labels.append(np.mean(model_outputs['multimodal labels'].data.cpu().numpy(), axis=0))
