@@ -77,8 +77,8 @@ class SpectraDataset(torch.utils.data.Dataset):
     """
 
     def __init__(self, data_file, dataset, wave_grid_file, multimodal_keys, unimodal_keys, 
-                 continuum_normalize, divide_by_median, chunk_size,
-                 tasks, task_means, task_stds, median_thresh=0., std_min=0.01,
+                 continuum_normalize, divide_by_median, chunk_size=None,
+                 tasks=None, task_means=None, task_stds=None, median_thresh=0., std_min=0.01,
                  apply_dropout=False, add_noise=False, max_noise_factor=0.1, 
                  random_chunk=False, overlap=0.5, channel_indices=[0,11880,25880],
                  inference_mode=False):
@@ -90,7 +90,10 @@ class SpectraDataset(torch.utils.data.Dataset):
         self.continuum_normalize = continuum_normalize
         self.divide_by_median = divide_by_median
         self.median_thresh = median_thresh
-        self.chunk_size = chunk_size
+        if chunk_size is None:
+            self.chunk_size = self.determine_num_pixels()
+        else:
+            self.chunk_size = chunk_size
         self.std_min = std_min
         self.wave_grid = np.load(wave_grid_file).astype(np.float32)
         self.tasks = tasks

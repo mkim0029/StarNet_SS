@@ -79,9 +79,6 @@ source_train_dataset = SpectraDataset(source_data_file,
                                       unimodal_keys=unimodal_keys,
                                       continuum_normalize=continuum_normalize,
                                       divide_by_median=divide_by_median,
-                                      chunk_size=chunk_size, 
-                                      median_thresh=0., std_min=std_min, 
-                                      channel_indices=channel_indices,
                                       inference_mode=True)
 
 source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
@@ -97,9 +94,6 @@ source_val_dataset = SpectraDataset(source_data_file,
                                       unimodal_keys=unimodal_keys,
                                       continuum_normalize=continuum_normalize,
                                       divide_by_median=divide_by_median,
-                                      chunk_size=chunk_size, 
-                                      median_thresh=0., std_min=std_min, 
-                                      channel_indices=channel_indices,
                                       inference_mode=True)
 
 source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset,
@@ -115,9 +109,6 @@ target_train_dataset = SpectraDataset(target_data_file,
                                       unimodal_keys=unimodal_keys,
                                       continuum_normalize=continuum_normalize,
                                       divide_by_median=divide_by_median,
-                                      chunk_size=chunk_size, 
-                                      median_thresh=0., std_min=std_min, 
-                                      channel_indices=channel_indices,
                                       inference_mode=True)
 
 target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
@@ -133,9 +124,6 @@ target_val_dataset = SpectraDataset(target_data_file,
                                       unimodal_keys=unimodal_keys,
                                       continuum_normalize=continuum_normalize,
                                       divide_by_median=divide_by_median,
-                                      chunk_size=chunk_size, 
-                                      median_thresh=0., std_min=std_min, 
-                                      channel_indices=channel_indices,
                                       inference_mode=True)
 
 target_val_dataloader = torch.utils.data.DataLoader(target_val_dataset,
