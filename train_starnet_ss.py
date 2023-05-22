@@ -3,9 +3,9 @@ import os
 cur_dir = os.path.dirname(__file__)
 import sys
 sys.path.append(os.path.join(cur_dir,'utils'))
-from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch_to_device
+from data_loader import SpectraDataset, batch_to_device
 from training_utils import (parseArguments,CosineSimilarityLoss, run_iter, 
-                            str2bool, compare_val_sample, determine_chunk_weights)
+                            str2bool, val_iter)
 from network import StarNet, build_starnet, load_model_state
 
 import configparser
@@ -18,8 +18,8 @@ from collections import defaultdict
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 num_gpus = torch.cuda.device_count()
 
-#np.random.seed(1)
-#torch.manual_seed(1)
+# np.random.seed(1)
+# torch.manual_seed(1)
 
 print('Using Torch version: %s' % (torch.__version__))
 print('Using a %s device with %i gpus' % (device, num_gpus))
@@ -40,7 +40,7 @@ if data_dir is None:
 # Model configuration
 config = configparser.ConfigParser()
 config.read(config_dir+model_name+'.ini')
-    
+
 # TRAINING PARAMETERS
 source_data_file = os.path.join(data_dir, config['DATA']['source_data_file'])
 target_data_file = os.path.join(data_dir, config['DATA']['target_data_file'])
@@ -57,6 +57,7 @@ max_noise_factor = float(config['DATA']['max_noise_factor'])
 channel_indices = eval(config['DATA']['channel_indices'])
 std_min = float(config['DATA']['std_min'])
 batch_size = int(config['TRAINING']['batchsize'])
+chunk_size = int(config['TRAINING']['chunk_size'])
 lr = float(config['TRAINING']['lr'])
 final_lr_factor = float(config['TRAINING']['final_lr_factor'])
 weight_decay = float(config['TRAINING']['weight_decay'])
@@ -104,16 +105,15 @@ model = torch.nn.parallel.DataParallel(model, device_ids=list(range(num_gpus)), 
 if num_gpus>1:
     batch_size *= num_gpus
 
-load_second_chunk = model.module.use_split_convs
 # Create data loaders
-source_train_dataset = WeaveSpectraDataset(source_data_file, 
+source_train_dataset = SpectraDataset(source_data_file, 
                                            dataset='train', 
                                            wave_grid_file=wave_grid_file, 
                                            multimodal_keys=multimodal_keys,
                                            unimodal_keys=unimodal_keys,
                                            continuum_normalize=continuum_normalize,
                                            divide_by_median=divide_by_median,
-                                           num_fluxes=model.module.num_fluxes, 
+                                           chunk_size=chunk_size, 
                                            tasks=model.module.tasks, 
                                            task_means=model.module.task_means.cpu().numpy(), 
                                            task_stds=model.module.task_stds.cpu().numpy(),
@@ -123,7 +123,6 @@ source_train_dataset = WeaveSpectraDataset(source_data_file,
                                            max_noise_factor=max_noise_factor,
                                            random_chunk=random_chunk,
                                            overlap=overlap,
-                                           load_second_chunk=load_second_chunk,
                                            channel_indices=channel_indices)
 
 source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
@@ -132,14 +131,14 @@ source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
                                                       num_workers=3,
                                                       pin_memory=True)
 
-source_val_dataset = WeaveSpectraDatasetInference(source_data_file, 
+source_val_dataset = SpectraDataset(source_data_file, 
                                                   dataset='val', 
                                                   wave_grid_file=wave_grid_file, 
                                                   multimodal_keys=multimodal_keys,
                                                   unimodal_keys=unimodal_keys,
                                                   continuum_normalize=continuum_normalize,
                                                   divide_by_median=divide_by_median,
-                                                  num_fluxes=model.module.num_fluxes, 
+                                                  chunk_size=chunk_size,  
                                                   tasks=model.module.tasks, 
                                                   task_means=model.module.task_means.cpu().numpy(), 
                                                   task_stds=model.module.task_stds.cpu().numpy(),
@@ -149,19 +148,19 @@ source_val_dataset = WeaveSpectraDatasetInference(source_data_file,
                                                   channel_indices=channel_indices)
 
 source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset, 
-                                                    batch_size=1, 
+                                                    batch_size=batch_size, 
                                                     shuffle=False, 
                                                     num_workers=3,
                                                     pin_memory=True)
 
-target_train_dataset = WeaveSpectraDataset(target_data_file, 
+target_train_dataset = SpectraDataset(target_data_file, 
                                            dataset='train', 
                                            wave_grid_file=wave_grid_file, 
                                            multimodal_keys=multimodal_keys,
                                            unimodal_keys=unimodal_keys,
                                            continuum_normalize=continuum_normalize,
                                            divide_by_median=divide_by_median, 
-                                           num_fluxes=model.module.num_fluxes,
+                                           chunk_size=chunk_size, 
                                            tasks=model.module.tasks, 
                                            task_means=model.module.task_means.cpu().numpy(), 
                                            task_stds=model.module.task_stds.cpu().numpy(),
@@ -169,7 +168,6 @@ target_train_dataset = WeaveSpectraDataset(target_data_file,
                                            apply_dropout=False,
                                            random_chunk=random_chunk,
                                            overlap=overlap,
-                                           load_second_chunk=load_second_chunk,
                                           channel_indices=channel_indices)
 
 target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
@@ -178,14 +176,14 @@ target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
                                                       num_workers=3,
                                                       pin_memory=True)
 
-target_val_dataset = WeaveSpectraDatasetInference(target_data_file, 
+target_val_dataset = SpectraDataset(target_data_file, 
                                                   dataset='val', 
                                                   wave_grid_file=wave_grid_file, 
                                                   multimodal_keys=multimodal_keys,
                                                   unimodal_keys=unimodal_keys,
                                                   continuum_normalize=continuum_normalize,
                                                   divide_by_median=divide_by_median, 
-                                                  num_fluxes=model.module.num_fluxes,
+                                                  chunk_size=chunk_size, 
                                                   tasks=model.module.tasks, 
                                                   task_means=model.module.task_means.cpu().numpy(), 
                                                   task_stds=model.module.task_stds.cpu().numpy(),
@@ -195,7 +193,7 @@ target_val_dataset = WeaveSpectraDatasetInference(target_data_file,
                                                  channel_indices=channel_indices)
 
 target_val_dataloader = torch.utils.data.DataLoader(target_val_dataset, 
-                                                    batch_size=1, 
+                                                    batch_size=batch_size, 
                                                     shuffle=False, 
                                                     num_workers=3,
                                                     pin_memory=True)
@@ -262,7 +260,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                         target_val_batch = batch_to_device(target_val_batch, device)
 
                         # Run evaluation on a batch of validation samples 
-                        losses_cp = compare_val_sample(model, 
+                        losses_cp = val_iter(model, 
                                                        source_val_batch, 
                                                        target_val_batch, 
                                                        losses_cp)
@@ -279,20 +277,25 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                 print('\t\tTotal Loss: %0.3f'% (losses['train_loss'][-1]))
                 if model.module.num_mm_labels>0:
                     print('\t\tStellar Multimodal Loss: %0.3f' % (losses['train_src_mm_labels'][-1]))
+                    print('\t\tChunk Multimodal Loss: %0.3f' % (losses['train_src_mm_labels_chunk'][-1]))
                 if model.module.num_um_labels>0:
                     print('\t\tStellar Unimodal Loss: %0.3f' % (losses['train_src_um_labels'][-1]))
+                    print('\t\tChunk Unimodal Loss: %0.3f' % (losses['train_src_um_labels_chunk'][-1]))
                 if len(model.module.tasks)>0:
                     for i, task in enumerate(model.module.tasks):
                         print('\t\tSource %s Task Loss: %0.3f' % (task.capitalize(),
                                                                   losses['train_src_tasks'][-1][i]))
                         print('\t\tTarget %s Task Loss: %0.3f' % (task.capitalize(),
                                                                   losses['train_tgt_tasks'][-1][i]))
+                        print('\t\tSource Chunk %s Task Loss: %0.3f' % (task.capitalize(),
+                                                                  losses['train_src_tasks_chunk'][-1][i]))
+                        print('\t\tTarget Chunk %s Task Loss: %0.3f' % (task.capitalize(),
+                                                                  losses['train_tgt_tasks_chunk'][-1][i]))
                 if model.module.use_split_convs:
                     print('\t\tSource Feature Loss: %0.3f' % (losses['train_src_feats'][-1]))
                     print('\t\tTarget Feature Loss: %0.3f' % (losses['train_tgt_feats'][-1]))
                 print('\tValidation Dataset')
                 #print('\t\tTotal Loss: %0.3f'% (losses['val_loss'][-1]))
-                print('\t\tFeature Map Score: %0.3f' % (losses['val_feats'][-1]))
                 if model.module.num_mm_labels>0:
                     for i, key in enumerate(model.module.multimodal_keys):
                         print('\t\tSource %s MAE: %0.3f' % (key.capitalize(),
@@ -340,37 +343,6 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                             model_filename)
                 # Finish training
                 break 
-                
-                
-    # Determine weighting of each chunk based on source dataset
-    source_train_dataset2 = WeaveSpectraDatasetInference(source_data_file, 
-                                                      dataset='train', 
-                                                      wave_grid_file=wave_grid_file, 
-                                                      multimodal_keys=multimodal_keys,
-                                                      unimodal_keys=unimodal_keys,
-                                                      continuum_normalize=continuum_normalize,
-                                                      divide_by_median=divide_by_median,
-                                                      num_fluxes=model.module.num_fluxes, 
-                                                      tasks=model.module.tasks, 
-                                                      task_means=model.module.task_means.cpu().numpy(), 
-                                                      task_stds=model.module.task_stds.cpu().numpy(),
-                                                      median_thresh=0., std_min=std_min, 
-                                                      random_chunk=random_chunk,
-                                                      overlap=overlap,
-                                                      channel_indices=channel_indices)
-    
-    chunk_indices, chunk_weights = determine_chunk_weights(model, 
-                                                           source_train_dataset2, 
-                                                           device)
-    torch.save({'batch_iters': cur_iter,
-                'losses': losses,
-                'optimizer' : optimizer.state_dict(),
-                'lr_scheduler' : lr_scheduler.state_dict(),
-                'model' : model.module.state_dict(),
-                'classifier models': [net.state_dict() for net in model.module.label_classifiers],
-               'chunk_indices' : chunk_indices,
-               'chunk_weights' : chunk_weights},
-               model_filename)
 
 # Run the training
 if __name__=="__main__":

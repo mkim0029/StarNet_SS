@@ -3,7 +3,7 @@ import os
 cur_dir = os.path.dirname(__file__)
 import sys
 sys.path.append(os.path.join(cur_dir,'utils'))
-from data_loader import WeaveSpectraDataset, WeaveSpectraDatasetInference, batch_to_device
+from data_loader import SpectraDataset, batch_to_device
 from training_utils import (parseArguments, str2bool)
 from network import StarNet, build_starnet, load_model_state
 from analysis_fns import (plot_progress, plot_val_MAEs, predict_labels, 
@@ -41,7 +41,7 @@ if data_dir is None:
 # Model configuration
 config = configparser.ConfigParser()
 config.read(config_dir+model_name+'.ini')
-    
+
 # TRAINING PARAMETERS
 source_data_file = os.path.join(data_dir, config['DATA']['source_data_file'])
 target_data_file = os.path.join(data_dir, config['DATA']['target_data_file'])
@@ -51,11 +51,10 @@ unimodal_keys = eval(config['DATA']['unimodal_keys'])
 continuum_normalize = str2bool(config['DATA']['continuum_normalize'])
 divide_by_median = str2bool(config['DATA']['divide_by_median'])
 add_noise_to_source = str2bool(config['DATA']['add_noise_to_source'])
-random_chunk = str2bool(config['DATA']['random_chunk'])
-overlap = float(config['DATA']['overlap'])
 channel_indices = eval(config['DATA']['channel_indices'])
 std_min = float(config['DATA']['std_min'])
 batch_size = int(config['TRAINING']['batchsize'])
+chunk_size = int(config['TRAINING']['chunk_size'])
 
 # Calculate multimodal values from source training set
 with h5py.File(source_data_file, "r") as f:
@@ -72,76 +71,78 @@ model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
 model, losses, cur_iter, chunk_indices, chunk_weights = load_model_state(model,
                                                                          model_filename)
 
-# Multi GPUs
-model = torch.nn.parallel.DataParallel(model, device_ids=list(range(num_gpus)), dim=0)
-if num_gpus>1:
-    batch_size *= num_gpus
-    
-load_second_chunk = model.module.use_split_convs
 # Create dataset for loading spectra
-source_train_dataset = WeaveSpectraDatasetInference(source_data_file, 
-                                           dataset='train', 
-                                           wave_grid_file=wave_grid_file, 
-                                           multimodal_keys=multimodal_keys,
-                                           unimodal_keys=unimodal_keys,
-                                           continuum_normalize=continuum_normalize,
-                                           divide_by_median=divide_by_median,
-                                           num_fluxes=model.module.num_fluxes, 
-                                           tasks=model.module.tasks, 
-                                           task_means=model.module.task_means.cpu().numpy(), 
-                                           task_stds=model.module.task_stds.cpu().numpy(),
-                                           median_thresh=0., std_min=std_min, 
-                                                  random_chunk=random_chunk,
-                                                  overlap=overlap,
-                                                  channel_indices=channel_indices)
+source_train_dataset = SpectraDataset(source_data_file, 
+                                      dataset='train', 
+                                      wave_grid_file=wave_grid_file, 
+                                      multimodal_keys=multimodal_keys,
+                                      unimodal_keys=unimodal_keys,
+                                      continuum_normalize=continuum_normalize,
+                                      divide_by_median=divide_by_median,
+                                      chunk_size=chunk_size, 
+                                      median_thresh=0., std_min=std_min, 
+                                      channel_indices=channel_indices,
+                                      inference_mode=True)
 
-source_val_dataset = WeaveSpectraDatasetInference(source_data_file, 
-                                         dataset='val', 
-                                         wave_grid_file=wave_grid_file, 
-                                         multimodal_keys=multimodal_keys,
-                                           unimodal_keys=unimodal_keys,
-                                         continuum_normalize=continuum_normalize,
-                                           divide_by_median=divide_by_median,
-                                         num_fluxes=model.module.num_fluxes, 
-                                         tasks=model.module.tasks, 
-                                         task_means=model.module.task_means.cpu().numpy(), 
-                                         task_stds=model.module.task_stds.cpu().numpy(),
-                                         median_thresh=0., std_min=std_min, 
-                                                  random_chunk=random_chunk,
-                                                  overlap=overlap,
-                                                  channel_indices=channel_indices)
+source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
+                                                      batch_size=batch_size, 
+                                                      shuffle=False, 
+                                                      num_workers=5,
+                                                      pin_memory=True)
 
-target_train_dataset = WeaveSpectraDatasetInference(target_data_file, 
-                                           dataset='train', 
-                                           wave_grid_file=wave_grid_file, 
-                                           multimodal_keys=multimodal_keys,
-                                           unimodal_keys=unimodal_keys,
-                                           continuum_normalize=continuum_normalize,
-                                           divide_by_median=divide_by_median, 
-                                           num_fluxes=model.module.num_fluxes,
-                                           tasks=model.module.tasks, 
-                                           task_means=model.module.task_means.cpu().numpy(), 
-                                           task_stds=model.module.task_stds.cpu().numpy(),
-                                           median_thresh=0., std_min=std_min, 
-                                                  random_chunk=random_chunk,
-                                                  overlap=overlap,
-                                                  channel_indices=channel_indices)
+source_val_dataset = SpectraDataset(source_data_file, 
+                                    dataset='val', 
+                                    wave_grid_file=wave_grid_file, 
+                                      multimodal_keys=multimodal_keys,
+                                      unimodal_keys=unimodal_keys,
+                                      continuum_normalize=continuum_normalize,
+                                      divide_by_median=divide_by_median,
+                                      chunk_size=chunk_size, 
+                                      median_thresh=0., std_min=std_min, 
+                                      channel_indices=channel_indices,
+                                      inference_mode=True)
 
-target_val_dataset = WeaveSpectraDatasetInference(target_data_file, 
-                                         dataset='val', 
-                                         wave_grid_file=wave_grid_file, 
-                                         multimodal_keys=multimodal_keys,
-                                           unimodal_keys=unimodal_keys,
-                                         continuum_normalize=continuum_normalize,
-                                           divide_by_median=divide_by_median,
-                                         num_fluxes=model.module.num_fluxes,
-                                         tasks=model.module.tasks, 
-                                         task_means=model.module.task_means.cpu().numpy(), 
-                                         task_stds=model.module.task_stds.cpu().numpy(),
-                                         median_thresh=0., std_min=std_min, 
-                                                  random_chunk=random_chunk,
-                                                  overlap=overlap,
-                                                  channel_indices=channel_indices)
+source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset,
+                                                      batch_size=batch_size, 
+                                                      shuffle=False, 
+                                                      num_workers=5,
+                                                      pin_memory=True)
+
+target_train_dataset = SpectraDataset(target_data_file, 
+                                      dataset='train', 
+                                      wave_grid_file=wave_grid_file, 
+                                      multimodal_keys=multimodal_keys,
+                                      unimodal_keys=unimodal_keys,
+                                      continuum_normalize=continuum_normalize,
+                                      divide_by_median=divide_by_median,
+                                      chunk_size=chunk_size, 
+                                      median_thresh=0., std_min=std_min, 
+                                      channel_indices=channel_indices,
+                                      inference_mode=True)
+
+target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
+                                                      batch_size=batch_size, 
+                                                      shuffle=False, 
+                                                      num_workers=5,
+                                                      pin_memory=True)
+
+target_val_dataset = SpectraDataset(target_data_file, 
+                                    dataset='val', 
+                                    wave_grid_file=wave_grid_file, 
+                                      multimodal_keys=multimodal_keys,
+                                      unimodal_keys=unimodal_keys,
+                                      continuum_normalize=continuum_normalize,
+                                      divide_by_median=divide_by_median,
+                                      chunk_size=chunk_size, 
+                                      median_thresh=0., std_min=std_min, 
+                                      channel_indices=channel_indices,
+                                      inference_mode=True)
+
+target_val_dataloader = torch.utils.data.DataLoader(target_val_dataset,
+                                                      batch_size=batch_size, 
+                                                      shuffle=False, 
+                                                      num_workers=5,
+                                                      pin_memory=True)
 
 print('The source training set consists of %i spectra.' % (len(source_train_dataset)))
 print('The source validation set consists of %i spectra.' % (len(source_val_dataset)))
@@ -149,8 +150,56 @@ print('The source validation set consists of %i spectra.' % (len(source_val_data
 print('The target training set consists of %i spectra.' % (len(target_train_dataset)))
 print('The target validation set consists of %i spectra.' % (len(target_val_dataset)))
 
+def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
+    
+    print('Predicting on %i batches...' % (len(dataloader)))
+    try:
+        model.eval_mode()
+    except AttributeError:
+        model.module.eval_mode()
+        
+
+    tgt_mm_labels = []
+    tgt_um_labels = []
+    pred_mm_labels = []
+    pred_um_labels = []
+    with torch.no_grad():
+        # Loop through spectra in dataset
+        for batch in dataloader:
+            
+            batch = batch_to_device(batch, device)
+
+            # Collect target data
+            tgt_mm_labels.append(batch['multimodal labels'].data.cpu().numpy())
+            if len(batch['unimodal labels'][0])>0:
+                tgt_um_labels.append(batch['unimodal labels'].data.cpu().numpy())
+
+            # Perform forward propagation
+            try:
+                model_outputs = model(batch['spectrum'],
+                                  batch['spectrum index'],
+                                  norm_in=True, denorm_out=True, return_feats=True)
+            except AttributeError:
+                model_outputs = model.module(batch['spectrum'],
+                                  batch['spectrum index'],
+                                  norm_in=True, denorm_out=True, return_feats=True)
+
+                
+            # Take average from all spectrum chunk predictions
+            pred_mm_labels.append(model_outputs['multimodal labels'].data.cpu().numpy())
+            if len(batch['unimodal labels'][0])>0:
+                pred_um_labels.append(model_outputs['unimodal labels'].data.cpu().numpy())
+
+        tgt_mm_labels = np.vstack(tgt_mm_labels)
+        pred_mm_labels = np.vstack(pred_mm_labels)
+        if len(tgt_um_labels)>0:
+            tgt_um_labels = np.vstack(tgt_um_labels)
+            pred_um_labels = np.vstack(pred_um_labels)
+        
+    return tgt_mm_labels, tgt_um_labels, pred_mm_labels, pred_um_labels
+
 # Plot the training progress
-plot_progress(losses, model.module.tasks, 
+plot_progress(losses, model.tasks, 
               y_lims=[(1,3),(0.,4),(0.0,0.7),(0,3.0),(0,.2),
                       (0,1),(0,0.4),(0,0.4),(0,0.9),(0,0.6),(0,0.6),(0,0.1),(0,0.6)],
              savename=os.path.join(figs_dir, '%s_train_progress.png'%model_name))
@@ -161,11 +210,8 @@ plot_val_MAEs(losses, multimodal_keys+unimodal_keys,
 
 # Predict on source
 (tgt_mm_labels, tgt_um_labels, 
- pred_mm_labels, pred_um_labels) = predict_labels(model, source_val_dataset, 
-                                                  device=device, take_mode=False, 
-                                                  combine_batch_probs=True,
-                                                 chunk_indices=torch.tensor(chunk_indices),
-                                                chunk_weights=torch.tensor(chunk_weights))
+ pred_mm_labels, pred_um_labels) = predict_labels(model, source_val_dataloader, 
+                                                  device=device, take_mode=False)
 # Save predictions
 np.save(os.path.join(results_dir, '%s_source_mm_preds.npy'%model_name), pred_mm_labels)
 np.save(os.path.join(results_dir, '%s_source_mm_tgts.npy'%model_name), tgt_mm_labels)
@@ -184,11 +230,8 @@ plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
                                                 chunk_weights=torch.tensor(chunk_weights))
 '''
 (tgt_mm_labels, tgt_um_labels, 
- pred_mm_labels, pred_um_labels) = predict_labels(model, target_val_dataset, 
-                                                  device=device, take_mode=False, 
-                                                  combine_batch_probs=True,
-                                                 chunk_indices=torch.tensor(chunk_indices),
-                                                chunk_weights=torch.tensor(chunk_weights))
+ pred_mm_labels, pred_um_labels) = predict_labels(model, target_val_dataloader, 
+                                                  device=device, take_mode=False)
 '''
 pred_mm_labels = np.vstack((pred_mm_labels, pred_mm_labels2))
 tgt_mm_labels = np.vstack((tgt_mm_labels, tgt_mm_labels2))

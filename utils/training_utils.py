@@ -66,74 +66,86 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
     total_loss = 0.
     # Compute prediction on source batch
     model_outputs_src = model(src_batch['spectrum'],
-                              src_batch['pixel_indx'],
+                              src_batch['spectrum index'],
+                              norm_in=True, denorm_out=False, return_feats=True)
+    model_outputs_src_chunk = model(src_batch['spectrum chunk'],
+                              src_batch['chunk index'],
                               norm_in=True, denorm_out=False, return_feats=True)
     # Compute prediction on target batch
     model_outputs_tgt = model(tgt_batch['spectrum'],
-                              tgt_batch['pixel_indx'],
+                              tgt_batch['spectrum index'],
+                              norm_in=True, denorm_out=False, return_feats=True)
+    model_outputs_tgt_chunk = model(tgt_batch['spectrum chunk'],
+                              tgt_batch['chunk index'],
                               norm_in=True, denorm_out=False, return_feats=True)
         
     if model.module.num_mm_labels>0:
         # Compute average loss on stellar class labels
-        src_mm_loss_tot = 0.  
+        src_mm_loss_tot = 0.
+        src_mm_loss_tot_chunk = 0.
         src_classes = model.module.multimodal_to_class(src_batch['multimodal labels'])
         for i in range(model.module.num_mm_labels):
             src_mm_loss = torch.nn.NLLLoss()(model_outputs_src['multimodal labels'][i], 
                                              src_classes[i])
             src_mm_loss_tot += 1/model.module.num_mm_labels * src_mm_loss
+            src_mm_loss_chunk = torch.nn.NLLLoss()(model_outputs_src_chunk['multimodal labels'][i], 
+                                             src_classes[i])
+            src_mm_loss_tot_chunk += 1/model.module.num_mm_labels * src_mm_loss_chunk
             # Add to total loss
             if source_mm_weights[i]>0:
-                total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss
+                total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss/2
+                total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss_chunk/2
     
     if model.module.num_um_labels>0:
         src_um_loss_tot = 0.
+        src_um_loss_tot_chunk = 0.
         src_um_labels = model.module.normalize_unimodal(src_batch['unimodal labels'])
         for i in range(model.module.num_um_labels):
             src_um_loss = torch.nn.MSELoss()(model_outputs_src['unimodal labels'][:,i], 
                                              src_um_labels[:,i])
             src_um_loss_tot += 1/model.module.num_um_labels * src_um_loss
+            src_um_loss_chunk = torch.nn.MSELoss()(model_outputs_src_chunk['unimodal labels'][:,i], 
+                                             src_um_labels[:,i])
+            src_um_loss_tot_chunk += 1/model.module.num_um_labels * src_um_loss_chunk
             
             # Add to total loss
             if source_um_weights[i]>0:
-                total_loss = total_loss + source_um_weights[i]/model.module.num_um_labels * src_um_loss
+                total_loss = total_loss + source_um_weights[i]/model.module.num_um_labels * src_um_loss/2
+                total_loss = total_loss + source_um_weights[i]/model.module.num_um_labels * src_um_loss_chunk/2
         
     else:
         src_um_loss_tot = 0.
         
-    if model.module.use_split_convs:
-        # Compute prediction on second source batch
-        model_outputs_src2 = model(src_batch['spectrum2'],
-                                  src_batch['pixel_indx2'],
-                                  norm_in=True, denorm_out=False, return_feats=True)
-        # Compute prediction on second target batch
-        model_outputs_tgt2 = model(tgt_batch['spectrum2'],
-                                  tgt_batch['pixel_indx2'],
-                                  norm_in=True, denorm_out=False, return_feats=True)
+    # Compare feature maps of chunk vs full spectrum
+    src_feature_loss = feat_loss_fn(model_outputs_src['feature map'], 
+                                    model_outputs_src_chunk['feature map'])
         
-        # Compare feature maps
-        src_feature_loss = feat_loss_fn(model_outputs_src['feature map'], 
-                                              model_outputs_src2['feature map'])
+    tgt_feature_loss = feat_loss_fn(model_outputs_tgt['feature map'], 
+                                    model_outputs_tgt_chunk['feature map'])
         
-        tgt_feature_loss = feat_loss_fn(model_outputs_tgt['feature map'], 
-                                              model_outputs_tgt2['feature map'])
-        
-        if source_feature_weight>0:
-            total_loss = total_loss + source_feature_weight*src_feature_loss
-        if target_feature_weight>0:
-            total_loss = total_loss + target_feature_weight*tgt_feature_loss
+    if source_feature_weight>0:
+        total_loss = total_loss + source_feature_weight*src_feature_loss
+    if target_feature_weight>0:
+        total_loss = total_loss + target_feature_weight*tgt_feature_loss
         
     if len(model.module.tasks)>0:
         # Compute loss on task labels
-        src_task_losses = task_loss_fn(model.module.normalize_tasks(src_batch['task labels']), 
+        src_task_losses = task_loss_fn(model.module.normalize_tasks(src_batch['task labels full']), 
                                        model_outputs_src['task labels'])
-        tgt_task_losses = task_loss_fn(model.module.normalize_tasks(tgt_batch['task labels']), 
+        src_task_losses_chunk = task_loss_fn(model.module.normalize_tasks(src_batch['task labels chunk']), 
+                                             model_outputs_src_chunk['task labels'])
+        tgt_task_losses = task_loss_fn(model.module.normalize_tasks(tgt_batch['task labels full']), 
                                        model_outputs_tgt['task labels'])
+        tgt_task_losses_chunk = task_loss_fn(model.module.normalize_tasks(tgt_batch['task labels chunk']), 
+                                       model_outputs_tgt_chunk['task labels'])
         # Add to total loss
         for i in range(len(src_task_losses)):
             if source_task_weights[i]>0:
-                total_loss = total_loss + 1/len(src_task_losses)*src_task_losses[i]*source_task_weights[i]
+                total_loss = total_loss + 1/len(src_task_losses)*src_task_losses[i]/2*source_task_weights[i]
+                total_loss = total_loss + 1/len(src_task_losses)*src_task_losses_chunk[i]/2*source_task_weights[i]
             if target_task_weights[i]>0:
-                total_loss = total_loss + 1/len(tgt_task_losses)*tgt_task_losses[i]*target_task_weights[i]
+                total_loss = total_loss + 1/len(tgt_task_losses)*tgt_task_losses[i]/2*target_task_weights[i]
+                total_loss = total_loss + 1/len(tgt_task_losses)*tgt_task_losses_chunk[i]/2*target_task_weights[i]
         
     if mode=='train':        
         # Update the gradients
@@ -141,16 +153,19 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
 
         # Save loss and metrics
         losses_cp['train_loss'].append(float(total_loss))
-        if model.module.use_split_convs:
-            losses_cp['train_src_feats'].append(float(src_feature_loss))
-            losses_cp['train_tgt_feats'].append(float(tgt_feature_loss))
+        losses_cp['train_src_feats'].append(float(src_feature_loss))
+        losses_cp['train_tgt_feats'].append(float(tgt_feature_loss))
         if model.module.num_mm_labels>0:
             losses_cp['train_src_mm_labels'].append(float(src_mm_loss_tot))
+            losses_cp['train_src_mm_labels_chunk'].append(float(src_mm_loss_tot_chunk))
         if model.module.num_um_labels>0:
             losses_cp['train_src_um_labels'].append(float(src_um_loss_tot))
+            losses_cp['train_src_um_labels_chunk'].append(float(src_um_loss_tot_chunk))
         if len(model.module.tasks)>0:
             losses_cp['train_src_tasks'].append(src_task_losses.cpu().data.numpy().tolist())
+            losses_cp['train_src_tasks_chunk'].append(src_task_losses_chunk.cpu().data.numpy().tolist())
             losses_cp['train_tgt_tasks'].append(tgt_task_losses.cpu().data.numpy().tolist())
+            losses_cp['train_tgt_tasks_chunk'].append(tgt_task_losses_chunk.cpu().data.numpy().tolist())
 
         # Adjust network weights
         optimizer.step()
@@ -162,13 +177,61 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
     else:
         # Save loss and metrics
         losses_cp['val_loss'].append(float(total_loss))
-        if model.module.num_labels>0:
-            losses_cp['val_src_labels'].append(float(src_label_loss))
+        losses_cp['val_src_feats'].append(float(src_feature_loss))
+        losses_cp['val_tgt_feats'].append(float(tgt_feature_loss))
+        if model.module.num_mm_labels>0:
+            losses_cp['val_src_mm_labels'].append(float(src_mm_loss_tot))
+            losses_cp['val_src_mm_labels_chunk'].append(float(src_mm_loss_tot_chunk))
+        if model.module.num_um_labels>0:
+            losses_cp['val_src_um_labels'].append(float(src_um_loss_tot))
+            losses_cp['val_src_um_labels_chunk'].append(float(src_um_loss_tot))
         if len(model.module.tasks)>0:
             losses_cp['val_src_tasks'].append(src_task_losses.cpu().data.numpy().tolist())
+            losses_cp['val_src_tasks_chunk'].append(src_task_losses.cpu().data.numpy().tolist())
             losses_cp['val_tgt_tasks'].append(tgt_task_losses.cpu().data.numpy().tolist())
+            losses_cp['val_tgt_tasks_chunk'].append(tgt_task_losses.cpu().data.numpy().tolist())
                 
     return model, optimizer, lr_scheduler, losses_cp
+
+def val_iter(model, src_batch, tgt_batch, losses_cp):
+        
+    model.module.eval_mode()
+        
+    # Compute prediction on source batch
+    model_outputs_src = model(src_batch['spectrum'],
+                              src_batch['spectrum index'],
+                              norm_in=True, denorm_out=True, return_feats=True)
+    # Compute prediction on target batch
+    model_outputs_tgt = model(tgt_batch['spectrum'],
+                              tgt_batch['spectrum index'],
+                              norm_in=True, denorm_out=True, return_feats=True)
+        
+    # Compute Mean Abs Error on multimodal label predictions
+    src_mm_losses = []
+    tgt_mm_losses = []
+    for i in range(model.module.num_mm_labels):
+        src_mm_losses.append(torch.nn.L1Loss()(model_outputs_src['multimodal labels'][:,i], 
+                                               src_batch['multimodal labels'][:,i]))
+        tgt_mm_losses.append(torch.nn.L1Loss()(model_outputs_tgt['multimodal labels'][:,i], 
+                                               tgt_batch['multimodal labels'][:,i]))
+    
+    # Compute mean absolute error on unimodal label predictions
+    src_um_losses = []
+    tgt_um_losses = []
+    for i in range(model.module.num_um_labels):
+        src_um_losses.append(torch.nn.L1Loss()(um_label_preds_src[:,i], 
+                                               src_batch['unimodal labels'][:,i]))
+        tgt_um_losses.append(torch.nn.L1Loss()(um_label_preds_tgt[:,i], 
+                                               tgt_batch['unimodal labels'][:,i]))
+        
+    for src_val, tgt_val, label_key in zip(src_mm_losses, tgt_mm_losses, model.module.multimodal_keys):
+        losses_cp['val_src_'+label_key].append(float(src_val))
+        losses_cp['val_tgt_'+label_key].append(float(tgt_val))
+    for src_val, tgt_val, label_key in zip(src_um_losses, tgt_um_losses, model.module.unimodal_keys):
+        losses_cp['val_src_'+label_key].append(float(src_val))
+        losses_cp['val_tgt_'+label_key].append(float(tgt_val))
+                
+    return losses_cp
 
 def compare_val_sample(model, src_batch, tgt_batch, losses_cp, batch_size=16):
     

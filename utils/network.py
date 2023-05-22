@@ -94,7 +94,7 @@ class BottleNeckBlock(nn.Module):
         x = self.drop_path(x)
         x += res
         return x
-    
+
 class ConvNexStage(nn.Sequential):
     '''
     Stage: a collection of blocks. 
@@ -115,7 +115,7 @@ class ConvNexStage(nn.Sequential):
                 for _ in range(depth)
             ],
         )
-        
+
 class ConvNextStem(nn.Sequential):
     def __init__(self, in_features: int, out_features: int,
                  kernel_size: int, stride: int):
@@ -124,7 +124,7 @@ class ConvNextStem(nn.Sequential):
             #nn.BatchNorm1d(out_features)
             nn.GroupNorm(num_groups=1, num_channels=out_features)
         )
-        
+
 class ConvNextEncoder(nn.Module):
     def __init__(
         self,
@@ -161,7 +161,7 @@ class ConvNextEncoder(nn.Module):
         for stage in self.stages:
             x = stage(x)
         return x
-    
+
 class StarNet_convs(torch.nn.Module):
     '''
     Create a sequential model of 1D Convolutional layers.
@@ -192,7 +192,7 @@ class StarNet_convs(torch.nn.Module):
 
     def forward(self, x):
         return self.conv_model(x)
-        
+
 class StarNet_head(torch.nn.Module):
     '''
     Create a Linear output layer.
@@ -215,7 +215,7 @@ class StarNet_head(torch.nn.Module):
 
     def forward(self, x):
         return self.fc_model(x)
-    
+
 class StarNet(torch.nn.Module):
     def __init__(self, architecture_config, multimodal_keys,
                  unimodal_keys, mutlimodal_vals, device):
@@ -225,7 +225,6 @@ class StarNet(torch.nn.Module):
         self.multimodal_keys = multimodal_keys
         self.unimodal_keys = unimodal_keys
         self.mutlimodal_vals = mutlimodal_vals
-        self.num_fluxes = int(architecture_config['num_fluxes'])
         spectrum_size = int(architecture_config['spectrum_size'])
         self.d_model = int(architecture_config['encoder_dim'])
         conv_widths_sh = eval(architecture_config['conv_widths_sh'])
@@ -233,7 +232,7 @@ class StarNet(torch.nn.Module):
         stem_features_sh = int(architecture_config['stem_features_sh'])
         stem_filt_size = int(architecture_config['stem_filt_size'])
         stem_stride = int(architecture_config['stem_stride'])
-        num_filters_sp = eval(architecture_config['conv_filts_sp'])
+        self.num_filters_sp = eval(architecture_config['conv_filts_sp'])
         filter_lengths_sp = eval(architecture_config['filter_lengths_sp'])
         conv_strides_sp = eval(architecture_config['conv_strides_sp'])
         pool_length = int(architecture_config['pool_length'])
@@ -250,7 +249,7 @@ class StarNet(torch.nn.Module):
         self.task_stds = torch.tensor(eval(architecture_config['task_stds'])).to(device)
         self.device = device
           
-        self.use_split_convs = len(num_filters_sp)>0   
+        self.use_split_convs = len(self.num_filters_sp)>0   
         
         in_channels = 1
         if self.d_model>0:
@@ -282,19 +281,19 @@ class StarNet(torch.nn.Module):
         # Split convolutional layers
         if self.use_split_convs:
             self.feature_encoder_labels = StarNet_convs(in_channels=conv_widths_sh[-1],
-                                                 num_filters=num_filters_sp,
+                                                 num_filters=self.num_filters_sp,
                                                  strides=conv_strides_sp,
                                                  filter_lengths=filter_lengths_sp, 
                                                  pool_length=pool_length).to(device)
             if len(self.tasks)>0:
                 self.feature_encoder_tasks = StarNet_convs(in_channels=conv_widths_sh[-1],
-                                                 num_filters=num_filters_sp,
+                                                 num_filters=self.num_filters_sp,
                                                  strides=conv_strides_sp,
                                                  filter_lengths=filter_lengths_sp, 
                                                  pool_length=pool_length).to(device)
 
         # Determine shape after convolutions have been applied
-        feat_map_shape = compute_out_size((in_channels, self.num_fluxes), 
+        feat_map_shape = compute_out_size((in_channels, spectrum_size), 
                                           self.feature_encoder_sh, device)
         if self.use_split_convs:
             feat_map_shape = compute_out_size((feat_map_shape[0], feat_map_shape[1]), 
@@ -321,7 +320,7 @@ class StarNet(torch.nn.Module):
         if len(self.tasks)>0:
             self.task_predictor = StarNet_head(in_features=in_features, 
                                               out_features=len(self.tasks)).to(device)
-
+        
     
     def set_multimodal_vals(self, multimodal_vals):
         self.multimodal_vals = [vals.to(self.device) for vals in multimodal_vals]
@@ -341,9 +340,7 @@ class StarNet(torch.nn.Module):
             classes.append(torch.cat([torch.where(vals==labels[j,i])[0] for j in range(len(labels))]))
         return classes
     
-    def class_to_label(self, classes, batch_indices, take_mode=False,
-                       combine_batch_probs=False,
-                      take_batch_mode=False, chunk_indices=None, chunk_weights=None):
+    def class_to_label(self, classes, batch_indices, take_mode=False):
         '''Convert probabilities into labels using a weighted sum and the multimodal values.'''
         labels = []
         for i, (cla, c_vals) in enumerate(zip(classes, self.mutlimodal_vals)):
@@ -352,20 +349,6 @@ class StarNet(torch.nn.Module):
             
             # Turn predictions in "probabilities"
             prob = torch.exp(cla)
-            
-            if combine_batch_probs:
-                # This batch all came from the same spectrum, so we can 
-                # add the predicted probability distributions
-                if chunk_weights is not None:
-                    # Take weighted average based on chunk location
-                    batch_weights = torch.tensor([chunk_weights[i, chunk_indices==indx] for indx in batch_indices]).to(self.device)
-                    prob = torch.sum(prob*batch_weights.unsqueeze(1), dim=0,
-                                     keepdim=True)/torch.sum(batch_weights)
-                else:
-                    # Take simple average
-                    prob = torch.mean(prob, dim=0, keepdim=True)
-            elif take_batch_mode:
-                prob = torch.max(prob, dim=0, keepdim=True)[0]
             
             if take_mode:
                 # Take the class with the highest probability
@@ -469,8 +452,8 @@ class StarNet(torch.nn.Module):
         return chain(*parameters)
         
     def forward(self, x, pixel_indx=None, norm_in=True, 
-                denorm_out=False, take_mode=False, combine_batch_probs=False,
-                take_batch_mode=False, return_feats=False, return_feats_only=False,
+                denorm_out=False, take_mode=False,
+                return_feats=False, return_feats_only=False,
                 chunk_indices=None, chunk_weights=None):
         
         if norm_in:
@@ -513,20 +496,12 @@ class StarNet(torch.nn.Module):
                 if denorm_out:
                     # Denormalize labels
                     mm_labels = self.class_to_label(mm_labels, pixel_indx,
-                                                    take_mode=take_mode,
-                                                    combine_batch_probs=combine_batch_probs,
-                                                    take_batch_mode=take_batch_mode,
-                                                   chunk_indices=chunk_indices,
-                                                    chunk_weights=chunk_weights)
+                                                    take_mode=take_mode)
                 return_dict['multimodal labels'] = mm_labels
                 
             if self.num_um_labels>0:
                 # Predict labels from features
                 um_labels = self.unimodal_predictor(x)
-                if combine_batch_probs:
-                    # This batch all came from the same spectrum, so we can 
-                    # take the average of the predictions
-                    um_labels = torch.mean(um_labels, dim=0, keepdim=True)
                 
                 if denorm_out:
                     # Denormalize labels
@@ -542,7 +517,8 @@ class StarNet(torch.nn.Module):
                 return_dict['task labels'] = task_labels
                     
             return return_dict
-        
+            
+
 def build_starnet(config, device, model_name, mutlimodal_vals):
     
     # Display model configuration
