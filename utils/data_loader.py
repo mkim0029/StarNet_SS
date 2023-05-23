@@ -257,7 +257,7 @@ class SpectraDataset(torch.utils.data.Dataset):
         
         if self.inference_mode:
             # Return full spectrum and target labels without applying augmentations
-            return {'spectrum':spectrum,
+            return {'spectrum':torch.from_numpy(spectrum.astype(np.float32)),
                     'multimodal labels':multimodal_labels,
                     'unimodal labels':unimodal_labels,
                     'spectrum index': 0}
