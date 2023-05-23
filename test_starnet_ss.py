@@ -68,8 +68,7 @@ model = build_starnet(config, device, model_name, mutlimodal_vals)
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, losses, cur_iter, chunk_indices, chunk_weights = load_model_state(model,
-                                                                         model_filename)
+model, losses, cur_iter = load_model_state(model, model_filename)
 
 # Create dataset for loading spectra
 source_train_dataset = SpectraDataset(source_data_file, 
@@ -188,12 +187,12 @@ def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
 
 # Plot the training progress
 plot_progress(losses, model.tasks, 
-              y_lims=[(1,3),(0.,4),(0.0,0.7),(0,3.0),(0,.2),
-                      (0,1),(0,0.4),(0,0.4),(0,0.9),(0,0.6),(0,0.6),(0,0.1),(0,0.6)],
+              y_lims=[(1,6),(0.,4),(0.0,0.1),(0,0.1),(0,1.),
+                      (0,0.5),(0,0.1),(0,0.4),(0,1.1),(0,0.6),(0,0.6),(0,0.1),(0,0.6)],
              savename=os.path.join(figs_dir, '%s_train_progress.png'%model_name))
 
 plot_val_MAEs(losses, multimodal_keys+unimodal_keys, 
-              y_lims=[(0.,600.), (0.,0.6), (0.,1.0), (0.,.4), (0,40)],
+              y_lims=[(0.,600.), (0.,0.6), (0.,1.0), (0.,.3), (0,40)],
              savename=os.path.join(figs_dir, '%s_val_progress.png'%model_name))
 
 # Predict on source
