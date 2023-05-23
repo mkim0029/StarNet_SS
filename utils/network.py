@@ -48,7 +48,7 @@ class PositionalEncoding(torch.nn.Module):
         x = x + torch.concat([self.pe[:, i:i+x.size()[1], :] for i in start_indx])
         return self.dropout(x)
 
-# Adapted from https://github.com/FrancescoSaverioZuppichini/ConvNext
+# The below ConvNext classes were adapted from https://github.com/FrancescoSaverioZuppichini/ConvNext
 
 class LayerScaler(nn.Module):
     def __init__(self, init_value: float, dimensions: int):
@@ -341,11 +341,9 @@ class StarNet(torch.nn.Module):
         return classes
     
     def class_to_label(self, classes, batch_indices, take_mode=False):
-        '''Convert probabilities into labels using a weighted sum and the multimodal values.'''
+        '''Convert probabilities into labels using a weighted average and the multimodal values.'''
         labels = []
         for i, (cla, c_vals) in enumerate(zip(classes, self.mutlimodal_vals)):
-
-            #c_vals = torch.tensor(c_vals).to(cla.device)
             
             # Turn predictions in "probabilities"
             prob = torch.exp(cla)
@@ -453,8 +451,7 @@ class StarNet(torch.nn.Module):
         
     def forward(self, x, pixel_indx=None, norm_in=True, 
                 denorm_out=False, take_mode=False,
-                return_feats=False, return_feats_only=False,
-                chunk_indices=None, chunk_weights=None):
+                return_feats=False, return_feats_only=False):
         
         if norm_in:
             # Normalize spectra
@@ -591,21 +588,10 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
         
         for net, state in zip(model.label_classifiers, checkpoint['classifier models']):
             net.load_state_dict(state)
-            
-        # Load weighting for inference
-        if 'chunk_indices' in checkpoint.keys():
-            chunk_indices = checkpoint['chunk_indices']
-            chunk_weights = checkpoint['chunk_weights']
-        else:
-            chunk_indices = None
-            chunk_weights = None
         
     else:
         print('\nStarting fresh model to train...')
         losses = defaultdict(list)
         cur_iter = 1
         
-        chunk_indices = None
-        chunk_weights = None
-        
-    return model, losses, cur_iter, chunk_indices, chunk_weights
+    return model, losses, cur_iter

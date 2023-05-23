@@ -95,10 +95,8 @@ lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=in
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, losses, cur_iter, chunk_indices, chunk_weights = load_model_state(model,
-                                                                         model_filename, 
-                                                                         optimizer, 
-                                                                         lr_scheduler)
+model, losses, cur_iter = load_model_state(model, model_filename, 
+                                           optimizer, lr_scheduler)
 
 # Multi GPUs
 model = torch.nn.parallel.DataParallel(model, device_ids=list(range(num_gpus)), dim=0)
