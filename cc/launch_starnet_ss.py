@@ -22,7 +22,7 @@ def parseArguments():
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=7)
+                        type=int, default=6)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
@@ -36,28 +36,28 @@ def parseArguments():
     # Config params
     parser.add_argument("-sfn", "--source_data_file", 
                         help="Source data file for training.", 
-                        type=str, default='ambre.h5') 
+                        type=str, default='gaia_grid.h5') 
     parser.add_argument("-tfn", "--target_data_file", 
                         help="Target data file for training.", 
-                        type=str, default='golden_sample2.h5') 
+                        type=str, default='gaia_observed2.h5') 
     parser.add_argument("-wfn", "--wave_grid_file", 
                         help="Wave grid file.", 
-                        type=str, default='weave_hr_wavegrid_arms.npy')
+                        type=str, default='gaia_wavegrid.npy')
     parser.add_argument("-mmk", "--multimodal_keys",  type=str, nargs='+',
                         help="Dataset keys for labels in data file.", 
                         default="['teff', 'feh', 'logg', 'alpha']") 
     parser.add_argument("-umk", "--unimodal_keys",  type=str, nargs='+',
                         help="Dataset keys for labels in data file.", 
-                        default="['vrad']") 
+                        default="[]") 
     parser.add_argument("-cn", "--continuum_normalize", 
                         help="Whether or not to continuum normalize each spectrum.", 
-                        type=str, default='True')
+                        type=str, default='False')
     parser.add_argument("-dbm", "--divide_by_median", 
                         help="Whether or not to divide each spectrum by its median value.", 
                         type=str, default='False')
     parser.add_argument("-ado", "--apply_dropout", 
                         help="Whether or not to dropout chunks of flux value in the source spectra during training.", 
-                        type=str, default='True')
+                        type=str, default='False')
     parser.add_argument("-an", "--add_noise_to_source", 
                         help="Whether or not to add noise to source spectra during training.", 
                         type=str, default='True')
@@ -65,61 +65,64 @@ def parseArguments():
                         help="Maximum fraction of continuum to set random noise to.", 
                         type=float, default=0.1)
     parser.add_argument("-rc", "--random_chunk", 
-                        help="Whether or not to choose random parts of each spectrum.", 
+                        help="Whether or not to choose chunks from random parts of each spectrum.", 
                         type=str, default='True')
     parser.add_argument("-ov", "--overlap", 
                         help="The overlap between neighbouring chunks.", 
-                        type=float, default=0.5)
+                        type=float, default=0.9)
     parser.add_argument("-ci", "--channel_indices", 
                         help="Leftmost pixel indices of each channel in the spectrum.", 
-                        default=[0, 11880, 25880])
+                        default=[0])
     parser.add_argument("-ssm", "--std_min", 
                         help="Threshold for standard deviation of a channel in the spectrum (if lower, that channel will not be used).", 
-                        type=float, default=0.01)
+                        type=float, default=0.00001)
     
     parser.add_argument("-bs", "--batchsize", 
                         help="Training batchsize.", 
-                        type=int, default=8)
+                        type=int, default=64)
+    parser.add_argument("-chs", "--chunk_size", 
+                        help="Number of pixels in the spectrum chunks.", 
+                        type=int, default=250)
     parser.add_argument("-lr", "--lr", 
                         help="Initial learning rate.", 
                         type=float, default=0.001)
+    parser.add_argument("-lrf", "--final_lr_factor", 
+                        help="Final lr will be lr/lrf.", 
+                        type=float, default=100.0)
     parser.add_argument("-wd", "--weight_decay", 
                         help="Weight decay for AdamW optimizer.", 
                         type=float, default=0.01)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
-                        type=int, default=500000)
+                        type=int, default=200000)
     parser.add_argument("-smw", "--source_mm_weights", 
                         help="Loss weights for the multimodal NLL in the source domain.", 
-                        default=[1.0, 1.0, 1.0, 1.0])
+                        default=[10.0, 10.0, 10.0, 10.0])
     parser.add_argument("-suw", "--source_um_weights", 
                         help="Loss weights for the unimodal MSE in the source domain.", 
-                        default=[1.])
+                        default=[])
     parser.add_argument("-tfw", "--target_feature_weight", 
                         help="Loss weight for the feature comparison in the target domain.", 
-                        type=float, default=0.1)
+                        type=float, default=1.0)
     parser.add_argument("-sfw", "--source_feature_weight", 
                         help="Loss weight for the feature comparison in the source domain.", 
-                        type=float, default=0.1)
+                        type=float, default=1.0)
     parser.add_argument("-ttw", "--target_task_weights", 
                         help="Loss weights for each task in the target domain.", 
-                        default=[0.01, 0.01, 0.01, 0.01])
+                        default=[0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
     parser.add_argument("-stw", "--source_task_weights", 
                         help="Loss weights for each task in the target domain.", 
-                        default=[0.01, 0.01, 0.01, 0.01])
+                        default=[0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
     parser.add_argument("-flf", "--feat_loss_fn", 
                         help="Type of loss function to use for feature comparison (mse, l1, or cosine.", 
                         type=str, default='l1')
     
-    parser.add_argument("-nf", "--num_fluxes", 
-                        help="Number of flux values used as input to model.", 
-                        type=int, default=6000)
     parser.add_argument("-ssz", "--spectrum_size", 
                         help="Number of flux values in spectrum.", 
-                        type=int, default=43480)
+                        type=int, default=800)
     parser.add_argument("-ed", "--encoder_dim", 
                         help="Dimension of positional encoder (use 0 to not use positional encoder).", 
-                        type=int, default=18)
+                        type=int, default=16)
     parser.add_argument("-cwsh", "--conv_widths_sh", 
                         help="Number of to use in each stage of the ConvNext model.", 
                         default=[64, 128, 256, 512])
@@ -131,10 +134,10 @@ def parseArguments():
                         type=int, default=32)
     parser.add_argument("-sks", "--stem_filt_size", 
                         help="Kernel size of the stem layer of the ConvNext model.", 
-                        type=int, default=15)
+                        type=int, default=4)
     parser.add_argument("-ssl", "--stem_stride", 
                         help="Stride lengh of the stem layer of the ConvNext model.", 
-                        type=int, default=4)
+                        type=int, default=1)
     parser.add_argument("-cf", "--conv_filts_sp", 
                         help="Number of filters in conv layers.", 
                         default=[64])
@@ -143,31 +146,31 @@ def parseArguments():
                         default=[7])
     parser.add_argument("-cs", "--conv_strides_sp", 
                         help="Stride length of filters in conv layers.", 
-                        default=[2])
+                        default=[1])
     parser.add_argument("-pl", "--pool_length", 
                         help="Output size of pooling layer (use 0 for no pooling).", 
                         default=1)
     parser.add_argument("-umm", "--unimodal_means", 
                         help="Mean value of each label used for normalization.", 
-                        default=[0])
+                        default=[])
     parser.add_argument("-ums", "--unimodal_stds", 
                         help="Standard deviation of each label used for normalization.", 
-                        default=[50])
+                        default=[])
     parser.add_argument("-sm", "--spectra_mean", 
-                        help="Number of flux values in spectrum.", 
-                        type=float, default=0.883)
+                        help="Mean flux value in spectra.", 
+                        type=float, default=0.913)
     parser.add_argument("-ss", "--spectra_std", 
-                        help="Number of flux values in spectrum.", 
-                        type=float, default=0.192)
+                        help="Standard dev of flux values in spectra.", 
+                        type=float, default=0.160)
     parser.add_argument("-ta", "--tasks", type=str, nargs='+',
                         help="Names of the tasks to use during training.", 
-                        default=['wavelength', 'slope', 'bias', 'snr'])
+                        default=['wavelength', 'slope', 'bias', 'sine amp', 'sine period', 'sine phi'])
     parser.add_argument("-tm", "--task_means", 
                         help="Mean value of each task label used for normalization.", 
-                        default=[5416,0,0.0,30])
+                        default=[8580, 0, 0.0, 0, 0.5, 0])
     parser.add_argument("-ts", "--task_stds", 
                         help="Standard deviation of each task label used for normalization.", 
-                        default=[900,5e-05,0.1,60])
+                        default=[70, 5e-05, 0.1, 0.2, 2, 2])
     parser.add_argument("-co", "--comment", 
                         help="Comment for config file.", 
                         default='Original.')
@@ -225,7 +228,9 @@ elif user_input=='o':
                       'std_min': args.std_min}
 
     config['TRAINING'] = {'batchsize': args.batchsize,
+                          'chunk_size': args.chunk_size,
                           'lr': args.lr,
+                          'final_lr_factor': args.final_lr_factor,
                           'weight_decay': args.weight_decay,
                           'total_batch_iters': args.total_batch_iters,
                           'source_mm_weights': args.source_mm_weights,
@@ -237,7 +242,6 @@ elif user_input=='o':
                           'feat_loss_fn': args.feat_loss_fn}
     
     config['ARCHITECTURE'] = {'spectrum_size': args.spectrum_size,
-                              'num_fluxes': args.num_fluxes,
                               'encoder_dim': args.encoder_dim,
                               'conv_widths_sh': args.conv_widths_sh,
                               'conv_depths_sh': args.conv_depths_sh,
