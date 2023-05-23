@@ -283,7 +283,6 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                     print('\t\tSource Feature Loss: %0.3f' % (losses['train_src_feats'][-1]))
                     print('\t\tTarget Feature Loss: %0.3f' % (losses['train_tgt_feats'][-1]))
                 print('\tValidation Dataset')
-                #print('\t\tTotal Loss: %0.3f'% (losses['val_loss'][-1]))
                 if model.module.num_mm_labels>0:
                     for i, key in enumerate(model.module.multimodal_keys):
                         print('\t\tSource %s MAE: %0.3f' % (key.capitalize(),
@@ -304,7 +303,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
             # Increase the iteration
             cur_iter += 1
 
-            if time.time() - cp_start_time >= cp_time*60:
+            if (time.time() - cp_start_time) >= cp_time*60:
                 
                 # Save periodically
                 print('Saving network...')
@@ -318,7 +317,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
 
                 cp_start_time = time.time()
 
-            if cur_iter>(total_batch_iters):
+            if cur_iter > total_batch_iters:
                 
                 # Save after training
                 print('Saving network...')
