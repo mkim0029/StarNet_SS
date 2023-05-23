@@ -255,7 +255,7 @@ class SpectraDataset(torch.utils.data.Dataset):
             # Divide spectrum by its median to centre it around 1
             spectrum = spectrum/np.median(spectrum[spectrum>self.median_thresh])
         
-        if inference_mode:
+        if self.inference_mode:
             # Return full spectrum and target labels without applying augmentations
             return {'spectrum':spectrum,
                     'multimodal labels':multimodal_labels,
