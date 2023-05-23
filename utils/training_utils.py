@@ -33,7 +33,7 @@ def parseArguments():
                         type=float, default=15)
     # Alternate data directory than cycgan/data/
     parser.add_argument("-dd", "--data_dir", 
-                        help="Different data directory from ml/data.", 
+                        help="Data directory if different from StarNet_SS/data/", 
                         type=str, default=None)
     
     # Parse arguments
@@ -42,6 +42,7 @@ def parseArguments():
     return args
 
 def loss_fn(y_true, y_pred, y_sigma):
+    '''For a model that outputs the mean and std of each label.'''
     return torch.mean(torch.log(y_sigma)/2+ (y_true - y_pred)**2/(2*y_sigma)) + 5
 
 def task_loss_fn(y_true, y_pred):
@@ -55,8 +56,9 @@ def CosineSimilarityLoss(eps=1e-6):
     return loss
 
 def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler, 
-             source_mm_weights, source_um_weights, source_feature_weight, target_feature_weight,
-             source_task_weights, target_task_weights, feat_loss_fn, losses_cp, mode='train'):
+             source_mm_weights, source_um_weights, source_feature_weight,
+             target_feature_weight, source_task_weights, target_task_weights, 
+             feat_loss_fn, losses_cp, mode='train'):
         
     if mode=='train':
         model.module.train_mode()
@@ -64,46 +66,63 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
         model.module.eval_mode()
         
     total_loss = 0.
-    # Compute prediction on source batch
+    
+    # Compute prediction on source batch.
+    # First on the entire spectra and then on chunks from the spectra.
     model_outputs_src = model(src_batch['spectrum'],
                               src_batch['spectrum index'],
                               norm_in=True, denorm_out=False, return_feats=True)
     model_outputs_src_chunk = model(src_batch['spectrum chunk'],
-                              src_batch['chunk index'],
-                              norm_in=True, denorm_out=False, return_feats=True)
+                                    src_batch['chunk index'],
+                                    norm_in=True, denorm_out=False, return_feats=True)
+    
     # Compute prediction on target batch
+    # First on the entire spectra and then on chunks from the spectra.
     model_outputs_tgt = model(tgt_batch['spectrum'],
                               tgt_batch['spectrum index'],
                               norm_in=True, denorm_out=False, return_feats=True)
     model_outputs_tgt_chunk = model(tgt_batch['spectrum chunk'],
-                              tgt_batch['chunk index'],
-                              norm_in=True, denorm_out=False, return_feats=True)
+                                    tgt_batch['chunk index'],
+                                    norm_in=True, denorm_out=False, return_feats=True)
         
     if model.module.num_mm_labels>0:
-        # Compute average loss on stellar class labels
+        # Compute the average loss on stellar class labels
         src_mm_loss_tot = 0.
         src_mm_loss_tot_chunk = 0.
+        
+        # Convert target label values to classes
         src_classes = model.module.multimodal_to_class(src_batch['multimodal labels'])
         for i in range(model.module.num_mm_labels):
+            # Evaluate loss on predictions from the entire spectra
             src_mm_loss = torch.nn.NLLLoss()(model_outputs_src['multimodal labels'][i], 
                                              src_classes[i])
             src_mm_loss_tot += 1/model.module.num_mm_labels * src_mm_loss
+            
+            # Evaluate loss on predictions from the spectrum chunks
             src_mm_loss_chunk = torch.nn.NLLLoss()(model_outputs_src_chunk['multimodal labels'][i], 
-                                             src_classes[i])
+                                                   src_classes[i])
             src_mm_loss_tot_chunk += 1/model.module.num_mm_labels * src_mm_loss_chunk
+            
             # Add to total loss
             if source_mm_weights[i]>0:
                 total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss/2
                 total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss_chunk/2
-    
+    else:
+        src_mm_loss_tot = 0.
+        src_mm_loss_tot_chunk = 0.
+        
     if model.module.num_um_labels>0:
         src_um_loss_tot = 0.
         src_um_loss_tot_chunk = 0.
+        # Normalize target labels
         src_um_labels = model.module.normalize_unimodal(src_batch['unimodal labels'])
         for i in range(model.module.num_um_labels):
+            # Evaluate loss on predictions from the entire spectra
             src_um_loss = torch.nn.MSELoss()(model_outputs_src['unimodal labels'][:,i], 
                                              src_um_labels[:,i])
             src_um_loss_tot += 1/model.module.num_um_labels * src_um_loss
+            
+            # Evaluate loss on predictions from the spectrum chunks
             src_um_loss_chunk = torch.nn.MSELoss()(model_outputs_src_chunk['unimodal labels'][:,i], 
                                              src_um_labels[:,i])
             src_um_loss_tot_chunk += 1/model.module.num_um_labels * src_um_loss_chunk
@@ -115,14 +134,17 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
         
     else:
         src_um_loss_tot = 0.
+        src_um_loss_tot_chunk = 0.
         
-    # Compare feature maps of chunk vs full spectrum
+    # Compare feature maps of chunk vs full spectrum.
+    # Do this for both the source and target domains.
     src_feature_loss = feat_loss_fn(model_outputs_src['feature map'], 
                                     model_outputs_src_chunk['feature map'])
         
     tgt_feature_loss = feat_loss_fn(model_outputs_tgt['feature map'], 
                                     model_outputs_tgt_chunk['feature map'])
-        
+       
+    # Add to total loss
     if source_feature_weight>0:
         total_loss = total_loss + source_feature_weight*src_feature_loss
     if target_feature_weight>0:

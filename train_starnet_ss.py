@@ -41,7 +41,7 @@ if data_dir is None:
 config = configparser.ConfigParser()
 config.read(config_dir+model_name+'.ini')
 
-# TRAINING PARAMETERS
+# Training parameters from config file
 source_data_file = os.path.join(data_dir, config['DATA']['source_data_file'])
 target_data_file = os.path.join(data_dir, config['DATA']['target_data_file'])
 wave_grid_file = os.path.join(data_dir, config['DATA']['wave_grid_file'])
@@ -87,11 +87,14 @@ optimizer = torch.optim.AdamW(model.all_parameters(),
                              betas=(0.9, 0.999))
 
 # Learning rate scheduler
-lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr, total_steps=int(total_batch_iters), 
+lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr,
+                                                   total_steps=int(total_batch_iters), 
                                                    pct_start=0.05, anneal_strategy='cos', 
-                                                   cycle_momentum=True, base_momentum=0.85, 
+                                                   cycle_momentum=True, 
+                                                   base_momentum=0.85, 
                                                    max_momentum=0.95, div_factor=25.0, 
-                                                   final_div_factor=final_lr_factor, three_phase=False)
+                                                   final_div_factor=final_lr_factor, 
+                                                   three_phase=False)
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
@@ -105,23 +108,23 @@ if num_gpus>1:
 
 # Create data loaders
 source_train_dataset = SpectraDataset(source_data_file, 
-                                           dataset='train', 
-                                           wave_grid_file=wave_grid_file, 
-                                           multimodal_keys=multimodal_keys,
-                                           unimodal_keys=unimodal_keys,
-                                           continuum_normalize=continuum_normalize,
-                                           divide_by_median=divide_by_median,
-                                           chunk_size=chunk_size, 
-                                           tasks=model.module.tasks, 
-                                           task_means=model.module.task_means.cpu().numpy(), 
-                                           task_stds=model.module.task_stds.cpu().numpy(),
-                                           median_thresh=0., std_min=std_min,
-                                           apply_dropout=apply_dropout,
-                                           add_noise=add_noise_to_source,
-                                           max_noise_factor=max_noise_factor,
-                                           random_chunk=random_chunk,
-                                           overlap=overlap,
-                                           channel_indices=channel_indices)
+                                      dataset='train', 
+                                      wave_grid_file=wave_grid_file, 
+                                      multimodal_keys=multimodal_keys,
+                                      unimodal_keys=unimodal_keys,
+                                      continuum_normalize=continuum_normalize,
+                                      divide_by_median=divide_by_median,
+                                      chunk_size=chunk_size, 
+                                      tasks=model.module.tasks, 
+                                      task_means=model.module.task_means.cpu().numpy(), 
+                                      task_stds=model.module.task_stds.cpu().numpy(),
+                                      median_thresh=0., std_min=std_min,
+                                      apply_dropout=apply_dropout,
+                                      add_noise=add_noise_to_source,
+                                      max_noise_factor=max_noise_factor,
+                                      random_chunk=random_chunk,
+                                      overlap=overlap,
+                                      channel_indices=channel_indices)
 
 source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
                                                       batch_size=batch_size, 
@@ -130,20 +133,13 @@ source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
                                                       pin_memory=True)
 
 source_val_dataset = SpectraDataset(source_data_file, 
-                                                  dataset='val', 
-                                                  wave_grid_file=wave_grid_file, 
-                                                  multimodal_keys=multimodal_keys,
-                                                  unimodal_keys=unimodal_keys,
-                                                  continuum_normalize=continuum_normalize,
-                                                  divide_by_median=divide_by_median,
-                                                  chunk_size=chunk_size,  
-                                                  tasks=model.module.tasks, 
-                                                  task_means=model.module.task_means.cpu().numpy(), 
-                                                  task_stds=model.module.task_stds.cpu().numpy(),
-                                                  median_thresh=0., std_min=std_min, 
-                                                  random_chunk=random_chunk,
-                                                  overlap=overlap,
-                                                  channel_indices=channel_indices)
+                                    dataset='val', 
+                                    wave_grid_file=wave_grid_file, 
+                                      multimodal_keys=multimodal_keys,
+                                      unimodal_keys=unimodal_keys,
+                                      continuum_normalize=continuum_normalize,
+                                      divide_by_median=divide_by_median,
+                                      inference_mode=True)
 
 source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset, 
                                                     batch_size=batch_size, 
@@ -152,21 +148,21 @@ source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset,
                                                     pin_memory=True)
 
 target_train_dataset = SpectraDataset(target_data_file, 
-                                           dataset='train', 
-                                           wave_grid_file=wave_grid_file, 
-                                           multimodal_keys=multimodal_keys,
-                                           unimodal_keys=unimodal_keys,
-                                           continuum_normalize=continuum_normalize,
-                                           divide_by_median=divide_by_median, 
-                                           chunk_size=chunk_size, 
-                                           tasks=model.module.tasks, 
-                                           task_means=model.module.task_means.cpu().numpy(), 
-                                           task_stds=model.module.task_stds.cpu().numpy(),
-                                           median_thresh=0., std_min=std_min, 
-                                           apply_dropout=False,
-                                           random_chunk=random_chunk,
-                                           overlap=overlap,
-                                          channel_indices=channel_indices)
+                                      dataset='train', 
+                                      wave_grid_file=wave_grid_file, 
+                                      multimodal_keys=multimodal_keys,
+                                      unimodal_keys=unimodal_keys,
+                                      continuum_normalize=continuum_normalize,
+                                      divide_by_median=divide_by_median, 
+                                      chunk_size=chunk_size, 
+                                      tasks=model.module.tasks, 
+                                      task_means=model.module.task_means.cpu().numpy(), 
+                                      task_stds=model.module.task_stds.cpu().numpy(),
+                                      median_thresh=0., std_min=std_min, 
+                                      apply_dropout=False,
+                                      random_chunk=random_chunk,
+                                      overlap=overlap,
+                                      channel_indices=channel_indices)
 
 target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
                                                       batch_size=batch_size, 
@@ -175,20 +171,13 @@ target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
                                                       pin_memory=True)
 
 target_val_dataset = SpectraDataset(target_data_file, 
-                                                  dataset='val', 
-                                                  wave_grid_file=wave_grid_file, 
-                                                  multimodal_keys=multimodal_keys,
-                                                  unimodal_keys=unimodal_keys,
-                                                  continuum_normalize=continuum_normalize,
-                                                  divide_by_median=divide_by_median, 
-                                                  chunk_size=chunk_size, 
-                                                  tasks=model.module.tasks, 
-                                                  task_means=model.module.task_means.cpu().numpy(), 
-                                                  task_stds=model.module.task_stds.cpu().numpy(),
-                                                  median_thresh=0., std_min=std_min, 
-                                                  random_chunk=random_chunk,
-                                                   overlap=overlap,
-                                                 channel_indices=channel_indices)
+                                    dataset='val', 
+                                    wave_grid_file=wave_grid_file, 
+                                      multimodal_keys=multimodal_keys,
+                                      unimodal_keys=unimodal_keys,
+                                      continuum_normalize=continuum_normalize,
+                                      divide_by_median=divide_by_median,
+                                      inference_mode=True)
 
 target_val_dataloader = torch.utils.data.DataLoader(target_val_dataset, 
                                                     batch_size=batch_size, 
@@ -202,6 +191,7 @@ print('The source validation set consists of %i spectra.' % (len(source_val_data
 print('The target training set consists of %i spectra.' % (len(target_train_dataset)))
 print('The target validation set consists of %i spectra.' % (len(target_val_dataset)))
 
+# Define loss function used for feature map comparisons
 if 'mse' in feat_loss_fn.lower():
     feat_loss_fn = torch.nn.MSELoss()
 elif 'l1' in feat_loss_fn.lower():
@@ -259,9 +249,9 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
 
                         # Run evaluation on a batch of validation samples 
                         losses_cp = val_iter(model, 
-                                                       source_val_batch, 
-                                                       target_val_batch, 
-                                                       losses_cp)
+                                             source_val_batch, 
+                                             target_val_batch, 
+                                             losses_cp)
 
                 # Calculate averages
                 for k in losses_cp.keys():

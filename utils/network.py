@@ -569,7 +569,7 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None):
     # Check for pre-trained weights
     if os.path.exists(model_filename):
         # Load saved model state
-        print('\nLoading saved model to continue training...')
+        print('\nLoading saved model weights...')
         
         # Load model info
         checkpoint = torch.load(model_filename, 

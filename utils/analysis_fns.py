@@ -193,7 +193,7 @@ def plot_val_MAEs(losses, multimodal_keys, y_lims=[(0,1)], x_lim=None,
                  label=r'Source', c='k')
         ax.plot(losses['batch_iters'], losses['val_tgt_%s' % key],
                  label=r'Target', c='r')
-        ax.set_ylabel('NLL',fontsize=fontsize)
+        ax.set_ylabel('MAE',fontsize=fontsize)
         ax.set_ylim(*y_lims[i])
         ax.legend(fontsize=fontsize_small, ncol=2)
 
