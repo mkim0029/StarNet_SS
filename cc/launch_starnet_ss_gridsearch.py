@@ -6,7 +6,7 @@ start_model_num = 291
 
 # Different parameters to try out
 grid_params = {'acc': ['def-sfabbro'],
-               'task_stds':[[70, 5e-05, 0.1, 0.3, 3, 3],
+               'ts':[[70, 5e-05, 0.1, 0.3, 3, 3],
                             [70, 5e-05, 0.1, 0.1, 1, 1]]}
 
 # Create a list of all possible parameter combinations
