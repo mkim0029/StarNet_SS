@@ -2,16 +2,25 @@ import os
 import itertools
 
 # Starting number for jobs
-start_model_num = 297
+start_model_num = 321
 
 # Different parameters to try out
-grid_params = {'lrf':[1000,100,10],
+grid_params = {'bs': [256],
+               'v': [2000],
+               'smw':[[10.0, 10.0, 10.0, 10.0]],
+               'tfw/sfw':[1.0],
+               'ttw/stw':[[0.1, 0.1, 0.1, 0.1, 0.1, 0.1]],
+               'ti': [60000, 80000],
+               'lrf':[1000, 100, 10],
+               'wd': [0.1, 0.01, 0.001]}
+'''
+grid_params = {'lrf':[10000,1000],
                'smw':[[10.0, 10.0, 10.0, 10.0],
-                      [1.0, 1.0, 1.0, 1.0],],
+                      [30.0, 30.0, 30.0, 30.0],],
                'tfw/sfw':[10.0, 1.0],
-               'ttw/stw':[[0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+               'ttw/stw':[[1., 1., 1., 1., 1., 1.],
                           [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]]}
-
+'''
 # Create a list of all possible parameter combinations
 keys, values = zip(*grid_params.items())
 param_combos = [dict(zip(keys, v)) for v in itertools.product(*values)]
