@@ -105,8 +105,8 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
             
             # Add to total loss
             if source_mm_weights[i]>0:
-                total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss/2
-                total_loss = total_loss + source_mm_weights[i]/model.module.num_mm_labels * src_mm_loss_chunk/2
+                total_loss = total_loss + source_mm_weights[i] * src_mm_loss/2
+                total_loss = total_loss + source_mm_weights[i] * src_mm_loss_chunk/2
     else:
         src_mm_loss_tot = 0.
         src_mm_loss_tot_chunk = 0.
@@ -129,8 +129,8 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
             
             # Add to total loss
             if source_um_weights[i]>0:
-                total_loss = total_loss + source_um_weights[i]/model.module.num_um_labels * src_um_loss/2
-                total_loss = total_loss + source_um_weights[i]/model.module.num_um_labels * src_um_loss_chunk/2
+                total_loss = total_loss + source_um_weights[i] * src_um_loss/2
+                total_loss = total_loss + source_um_weights[i] * src_um_loss_chunk/2
         
     else:
         src_um_loss_tot = 0.

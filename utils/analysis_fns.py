@@ -673,7 +673,8 @@ def plot_resid_violinplot(label_keys, tgt_stellar_labels, pred_stellar_labels,
     
     plt.show()
 
-def plot_resid(label_keys, tgt_stellar_labels, pred_stellar_labels, sigma_stellar_labels=None,
+def plot_resid(label_keys, tgt_stellar_labels, pred_stellar_labels,
+               sigma_stellar_labels=None, x_label='',
               y_lims = [1000, 1, 1, 1, 10], savename=None):
     fig, axes = plt.subplots(len(label_keys), 1, figsize=(10, len(label_keys)*2.5))
 
@@ -737,7 +738,7 @@ def plot_resid(label_keys, tgt_stellar_labels, pred_stellar_labels, sigma_stella
                 ax.annotate('$\widetilde{m}$=%0.2f $s$=%0.2f'% (np.mean(diff), np.std(diff)),
                         (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
                         bbox=bbox_props)
-        ax.set_xlabel('%s' % (label_key), size=4*len(label_keys))
+        ax.set_xlabel('%s %s' % (x_label, label_key), size=4*len(label_keys))
         ax.set_ylabel(r'$\Delta$ %s' % label_key, size=4*len(label_keys))
         ax.axhline(0, linewidth=2, c='black', linestyle='--')
         ax.set_ylim(-y_lims[i], y_lims[i])

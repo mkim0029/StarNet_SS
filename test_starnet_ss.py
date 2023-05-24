@@ -18,16 +18,12 @@ import torch
 from collections import defaultdict
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-num_gpus = torch.cuda.device_count()
 
 print('Using Torch version: %s' % (torch.__version__))
-print('Using a %s device with %i gpus' % (device, num_gpus))
 
 # Collect the command line arguments
 args = parseArguments()
 model_name = args.model_name
-verbose_iters =args.verbose_iters
-cp_time = args.cp_time
 data_dir = args.data_dir
 
 # Directories
@@ -50,11 +46,7 @@ multimodal_keys = eval(config['DATA']['multimodal_keys'])
 unimodal_keys = eval(config['DATA']['unimodal_keys'])
 continuum_normalize = str2bool(config['DATA']['continuum_normalize'])
 divide_by_median = str2bool(config['DATA']['divide_by_median'])
-add_noise_to_source = str2bool(config['DATA']['add_noise_to_source'])
-channel_indices = eval(config['DATA']['channel_indices'])
-std_min = float(config['DATA']['std_min'])
 batch_size = int(config['TRAINING']['batchsize'])
-chunk_size = int(config['TRAINING']['chunk_size'])
 
 # Calculate multimodal values from source training set
 with h5py.File(source_data_file, "r") as f:
@@ -66,7 +58,7 @@ with h5py.File(source_data_file, "r") as f:
 # Build network
 model = build_starnet(config, device, model_name, mutlimodal_vals)
 
-# Load model state from previous training (if any)
+# Load model state from previous training
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
 model, losses, cur_iter = load_model_state(model, model_filename)
 
@@ -172,7 +164,7 @@ def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
                                   norm_in=True, denorm_out=True, return_feats=True)
 
                 
-            # Take average from all spectrum chunk predictions
+            # Save predictions
             pred_mm_labels.append(model_outputs['multimodal labels'].data.cpu().numpy())
             if len(batch['unimodal labels'][0])>0:
                 pred_um_labels.append(model_outputs['unimodal labels'].data.cpu().numpy())
