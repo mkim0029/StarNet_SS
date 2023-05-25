@@ -197,6 +197,7 @@ plot_val_MAEs(losses, multimodal_keys+unimodal_keys,
 # Save predictions
 np.save(os.path.join(results_dir, '%s_source_mm_preds.npy'%model_name), pred_mm_labels)
 np.save(os.path.join(results_dir, '%s_source_mm_tgts.npy'%model_name), tgt_mm_labels)
+np.save(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name), feature_maps)
 
 # Save a plot
 plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
@@ -221,7 +222,7 @@ tgt_mm_labels = np.vstack((tgt_mm_labels, tgt_mm_labels2))
 # Save predictions
 np.save(os.path.join(results_dir, '%s_target_mm_preds.npy'%model_name), pred_mm_labels)
 np.save(os.path.join(results_dir, '%s_target_mm_tgts.npy'%model_name), tgt_mm_labels)
-np.save(os.path.join(results_dir, '%s_feature_maps.npy'%model_name), feature_maps)
+np.save(os.path.join(results_dir, '%s_target_feature_maps.npy'%model_name), feature_maps)
 
 # Save a plot
 if len(np.unique(tgt_mm_labels[:,0]))<40:
