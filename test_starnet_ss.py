@@ -203,22 +203,17 @@ np.save(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name), feat
 plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
                       y_lims=[1000, 1.2, 1.5, 0.8], 
                       savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
-'''
-# Predict on target
-(tgt_mm_labels, tgt_um_labels, 
- pred_mm_labels, pred_um_labels) = predict_labels(model, target_train_dataset, 
-                                                  device=device, take_mode=False, 
-                                                  combine_batch_probs=True,
-                                                 chunk_indices=torch.tensor(chunk_indices),
-                                                chunk_weights=torch.tensor(chunk_weights))
-'''
+
 (tgt_mm_labels, tgt_um_labels, 
  pred_mm_labels, pred_um_labels, feature_maps) = predict_labels(model, target_val_dataloader, 
                                                   device=device, take_mode=False)
-'''
+(tgt_mm_labels2, tgt_um_labels, 
+ pred_mm_labels2, pred_um_labels, feature_maps2) = predict_labels(model, target_train_dataloader, 
+                                                  device=device, take_mode=False)
+
 pred_mm_labels = np.vstack((pred_mm_labels, pred_mm_labels2))
 tgt_mm_labels = np.vstack((tgt_mm_labels, tgt_mm_labels2))
-'''
+
 # Save predictions
 np.save(os.path.join(results_dir, '%s_target_mm_preds.npy'%model_name), pred_mm_labels)
 np.save(os.path.join(results_dir, '%s_target_mm_tgts.npy'%model_name), tgt_mm_labels)
