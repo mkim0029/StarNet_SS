@@ -1012,7 +1012,3 @@ def tsne_comparison(data1, data2, num_samples=-1,
                     bbox_inches='tight', pad_inches=0.05)
     
     plt.show()
-    
-tsne_comparison(source_feats, target_feats, 
-                label1=r'$\mathbf{\mathcal{Z}_{synth}}$',
-                label2=r'$\mathbf{\mathcal{Z}_{obs}}$')
