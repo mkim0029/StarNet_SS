@@ -16,13 +16,13 @@ def parseArguments():
     # Job params
     parser.add_argument("-v", "--verbose_iters", 
                         help="Number of batch iters after which to evaluate val set and display output.", 
-                        type=int, default=5000)
+                        type=int, default=3000)
     parser.add_argument("-ct", "--cp_time", 
                         help="Number of minutes after which to save a checkpoint.", 
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=6)
+                        type=int, default=3)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
@@ -39,7 +39,7 @@ def parseArguments():
                         type=str, default='gaia_grid.h5') 
     parser.add_argument("-tfn", "--target_data_file", 
                         help="Target data file for training.", 
-                        type=str, default='gaia_observed2.h5') 
+                        type=str, default='gaia_observed.h5') 
     parser.add_argument("-wfn", "--wave_grid_file", 
                         help="Wave grid file.", 
                         type=str, default='gaia_wavegrid.npy')
@@ -88,13 +88,13 @@ def parseArguments():
                         type=float, default=0.001)
     parser.add_argument("-lrf", "--final_lr_factor", 
                         help="Final lr will be lr/lrf.", 
-                        type=float, default=100.0)
+                        type=float, default=50.0)
     parser.add_argument("-wd", "--weight_decay", 
                         help="Weight decay for AdamW optimizer.", 
                         type=float, default=0.01)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
-                        type=int, default=200000)
+                        type=int, default=80000)
     parser.add_argument("-smw", "--source_mm_weights", 
                         help="Loss weights for the multimodal NLL in the source domain.", 
                         default=[10.0, 10.0, 10.0, 10.0])
@@ -143,7 +143,7 @@ def parseArguments():
                         default=[64])
     parser.add_argument("-fl", "--filter_lengths_sp", 
                         help="Length of filters in conv layers.", 
-                        default=[7])
+                        default=[3])
     parser.add_argument("-cs", "--conv_strides_sp", 
                         help="Stride length of filters in conv layers.", 
                         default=[1])

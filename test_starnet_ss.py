@@ -182,7 +182,7 @@ def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
 
 # Plot the training progress
 plot_progress(losses, model.tasks, 
-              y_lims=[(0,17),(0.,4),(0.,4),(0.0,0.1),(0,0.01),(0,1.),
+              y_lims=[(0,17),(0.,4),(0.,0.4),(0.0,0.1),(0,0.01),(0,1.),
                       (0,0.5),(0,0.1),(0,0.4),(0,1.1),(0,0.6),(0,0.6),(0,0.1),(0,0.6)],
              savename=os.path.join(figs_dir, '%s_train_progress.png'%model_name))
 
