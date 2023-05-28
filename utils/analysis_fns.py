@@ -15,6 +15,8 @@ from string import ascii_lowercase
 from scipy import stats
 import scipy.optimize as opt
 
+from sklearn.manifold import TSNE
+
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "serif",
@@ -961,3 +963,56 @@ def save_results(pred_stellar_labels_train, pred_stellar_labels_val,
         f.create_dataset('cname', data=cname)
         f.create_dataset('targid', data=targid)
         f.create_dataset('wprov', data=wprov)
+        
+def run_tsne(data_a, data_b, perplex):
+
+    m = len(data_a)
+
+    # Combine data into a single array
+    t_data = np.row_stack((data_a,data_b))
+
+    # Convert data to float64 matrix. float64 is need for bh_sne
+    t_data = np.asarray(t_data).astype('float64')
+    t_data = t_data.reshape((t_data.shape[0], -1))
+
+    # Run t-SNE    
+    vis_data = TSNE(n_components=2, 
+                    perplexity=perplex, n_jobs=8).fit_transform(t_data)
+    
+    # Separate 2D into x and y axes information
+    vis_x_a = vis_data[:m, 0]
+    vis_y_a = vis_data[:m, 1]
+    vis_x_b = vis_data[m:, 0]
+    vis_y_b = vis_data[m:, 1]
+    
+    return vis_x_a, vis_y_a, vis_x_b, vis_y_b
+
+def tsne_comparison(data1, data2, num_samples=-1, 
+                    perplex=80, 
+                    label1=r'$\mathbf{\mathcal{X}_{synth}}$',
+                    label2=r'$\mathbf{\mathcal{X}_{obs}}$',
+                    savename=None):
+    # Perform t-SNE on a subsample of the data
+    tx_1, ty_1, tx_2, ty_2 = run_tsne(data1[:num_samples], 
+                                      data2[:num_samples], 
+                                      perplex=perplex)
+
+    # Plot them together
+    plt.figure(figsize=(6,6))
+    plt.scatter(tx_1, ty_1,
+                label=label1,
+                marker='o', c='cornflowerblue', alpha=0.2)
+    plt.scatter(tx_2, ty_2,
+                label=label2,
+                marker='o', c='firebrick', alpha=0.2)
+    plt.legend(fontsize=14, frameon=True, fancybox=True, markerscale=2.)
+    
+    if savename is not None:
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
+                    bbox_inches='tight', pad_inches=0.05)
+    
+    plt.show()
+    
+tsne_comparison(source_feats, target_feats, 
+                label1=r'$\mathbf{\mathcal{Z}_{synth}}$',
+                label2=r'$\mathbf{\mathcal{Z}_{obs}}$')

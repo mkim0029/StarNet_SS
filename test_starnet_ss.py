@@ -8,7 +8,7 @@ from training_utils import (parseArguments, str2bool)
 from network import StarNet, build_starnet, load_model_state
 from analysis_fns import (plot_progress, plot_val_MAEs, predict_labels, 
                           predict_ensemble, plot_resid, plot_resid_violinplot,
-                           plot_one_to_one, plot_wave_sigma, plot_resid)
+                           plot_one_to_one, plot_wave_sigma, plot_resid, tsne_comparison)
 
 import configparser
 import time
@@ -182,7 +182,7 @@ def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
 
 # Plot the training progress
 plot_progress(losses, model.tasks, 
-              y_lims=[(0,17),(0.,4),(0.0,0.1),(0,0.01),(0,1.),
+              y_lims=[(0,17),(0.,4),(0.,4),(0.0,0.1),(0,0.01),(0,1.),
                       (0,0.5),(0,0.1),(0,0.4),(0,1.1),(0,0.6),(0,0.6),(0,0.1),(0,0.6)],
              savename=os.path.join(figs_dir, '%s_train_progress.png'%model_name))
 
@@ -192,12 +192,14 @@ plot_val_MAEs(losses, multimodal_keys+unimodal_keys,
 
 # Predict on source
 (tgt_mm_labels, tgt_um_labels, 
- pred_mm_labels, pred_um_labels, feature_maps) = predict_labels(model, source_val_dataloader, 
-                                                  device=device, take_mode=False)
+ pred_mm_labels, pred_um_labels, feature_maps_src) = predict_labels(model,
+                                                                source_val_dataloader, 
+                                                                device=device, 
+                                                                take_mode=False)
 # Save predictions
 np.save(os.path.join(results_dir, '%s_source_mm_preds.npy'%model_name), pred_mm_labels)
 np.save(os.path.join(results_dir, '%s_source_mm_tgts.npy'%model_name), tgt_mm_labels)
-np.save(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name), feature_maps)
+np.save(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name), feature_maps_src)
 
 # Save a plot
 plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
@@ -205,19 +207,22 @@ plot_resid_violinplot(multimodal_keys, tgt_mm_labels, pred_mm_labels,
                       savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
 
 (tgt_mm_labels, tgt_um_labels, 
- pred_mm_labels, pred_um_labels, feature_maps) = predict_labels(model, target_val_dataloader, 
-                                                  device=device, take_mode=False)
+ pred_mm_labels, pred_um_labels, feature_maps_tgt) = predict_labels(model,
+                                                                target_val_dataloader, 
+                                                                device=device, 
+                                                                take_mode=False)
+'''
 (tgt_mm_labels2, tgt_um_labels, 
- pred_mm_labels2, pred_um_labels, feature_maps2) = predict_labels(model, target_train_dataloader, 
+ pred_mm_labels2, pred_um_labels, feature_maps_tgt2) = predict_labels(model, target_train_dataloader, 
                                                   device=device, take_mode=False)
 
 pred_mm_labels = np.vstack((pred_mm_labels, pred_mm_labels2))
 tgt_mm_labels = np.vstack((tgt_mm_labels, tgt_mm_labels2))
-
+'''
 # Save predictions
 np.save(os.path.join(results_dir, '%s_target_mm_preds.npy'%model_name), pred_mm_labels)
 np.save(os.path.join(results_dir, '%s_target_mm_tgts.npy'%model_name), tgt_mm_labels)
-np.save(os.path.join(results_dir, '%s_target_feature_maps.npy'%model_name), feature_maps)
+np.save(os.path.join(results_dir, '%s_target_feature_maps.npy'%model_name), feature_maps_tgt)
 
 # Save a plot
 if len(np.unique(tgt_mm_labels[:,0]))<40:
@@ -228,3 +233,9 @@ else:
     plot_resid(multimodal_keys, tgt_mm_labels, pred_mm_labels,
                y_lims = [1000, 1.2, 1.5, 0.8], 
                savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
+    
+
+tsne_comparison(feature_maps_src, feature_maps_tgt, 
+                label1=r'$\mathbf{\mathcal{Z}_{synth}}$',
+                label2=r'$\mathbf{\mathcal{Z}_{obs}}$',
+               savename=os.path.join(figs_dir, '%s_feature_tsne.png'%model_name))
