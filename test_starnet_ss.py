@@ -234,7 +234,7 @@ else:
                y_lims = [1000, 1.2, 1.5, 0.8], 
                savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
     
-print(feature_maps_src.shape, feature_maps_tgt.shape)
+print(np.max(feature_maps_src), np.max(feature_maps_tgt))
 
 tsne_comparison(feature_maps_src, feature_maps_tgt, 
                 label1=r'$\mathbf{\mathcal{Z}_{synth}}$',
