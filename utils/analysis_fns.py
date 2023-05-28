@@ -970,18 +970,14 @@ def run_tsne(data_a, data_b, perplex):
 
     # Combine data into a single array
     t_data = np.row_stack((data_a,data_b))
-
-    print(t_data.shape)
     
     # Convert data to float64 matrix. float64 is need for bh_sne
     t_data = np.asarray(t_data).astype('float64')
     t_data = t_data.reshape((t_data.shape[0], -1))
-
-    print(t_data.shape)
     
     # Run t-SNE    
     vis_data = TSNE(n_components=2, 
-                    perplexity=perplex, n_jobs=8).fit_transform(t_data)
+                    perplexity=perplex).fit_transform(t_data)
     
     # Separate 2D into x and y axes information
     vis_x_a = vis_data[:m, 0]
@@ -991,14 +987,14 @@ def run_tsne(data_a, data_b, perplex):
     
     return vis_x_a, vis_y_a, vis_x_b, vis_y_b
 
-def tsne_comparison(data1, data2, num_samples=-1, 
+def tsne_comparison(data1, data2, 
                     perplex=80, 
                     label1=r'$\mathbf{\mathcal{X}_{synth}}$',
                     label2=r'$\mathbf{\mathcal{X}_{obs}}$',
                     savename=None):
     # Perform t-SNE on a subsample of the data
-    tx_1, ty_1, tx_2, ty_2 = run_tsne(data1[:num_samples], 
-                                      data2[:num_samples], 
+    tx_1, ty_1, tx_2, ty_2 = run_tsne(data1, 
+                                      data2, 
                                       perplex=perplex)
 
     # Plot them together
