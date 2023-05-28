@@ -246,11 +246,34 @@ def val_iter(model, src_batch, tgt_batch, losses_cp):
         tgt_um_losses.append(torch.nn.L1Loss()(model_outputs_tgt['unimodal labels'][:,i], 
                                                tgt_batch['unimodal labels'][:,i]))
         
+    
+    # Evaluate distance between features
+    
+    # Compute max and min of each feature
+    max_feat = torch.max(torch.cat((model_outputs_src['feature map'], 
+                                    model_outputs_tgt['feature map']), 0), 
+                         dim=0).values
+    min_feat = torch.min(torch.cat((model_outputs_src['feature map'], 
+                                    model_outputs_tgt['feature map']), 0), 
+                         dim=0).values
+
+    # Normalize each feature between 0 and 1 across the entire batch
+    model_feats_src_norm = ( (model_outputs_src['feature map'] - min_feat) /
+                             (max_feat-min_feat+1e-8) )
+    model_feats_tgt_norm = ( (model_outputs_tgt['feature map'] - min_feat) /
+                             (max_feat-min_feat+1e-8) )
+    
+    # Compute mean absolute error
+    feat_loss = torch.mean(torch.abs(model_feats_src_norm-model_feats_tgt_norm))    
+        
+    # Save losses    
     for src_val, tgt_val, label_key in zip(src_mm_losses, tgt_mm_losses, model.module.multimodal_keys):
         losses_cp['val_src_'+label_key].append(float(src_val))
         losses_cp['val_tgt_'+label_key].append(float(tgt_val))
     for src_val, tgt_val, label_key in zip(src_um_losses, tgt_um_losses, model.module.unimodal_keys):
         losses_cp['val_src_'+label_key].append(float(src_val))
         losses_cp['val_tgt_'+label_key].append(float(tgt_val))
+        
+    losses_cp['val_feats'].append(float(feat_loss))
                 
     return losses_cp

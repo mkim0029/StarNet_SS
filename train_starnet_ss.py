@@ -295,7 +295,8 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                                                             losses['val_src_'+key][-1]))
                         print('\t\tTarget %s MAE: %0.3f' % (key.capitalize(),
                                                             losses['val_tgt_'+key][-1]))
-
+                print('\t\tFeature Matching: %0.3f' % (losses['val_feats'][-1]))
+                
                 # Reset checkpoint loss dictionary
                 losses_cp = defaultdict(list)
 
