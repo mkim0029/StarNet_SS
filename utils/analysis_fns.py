@@ -971,10 +971,14 @@ def run_tsne(data_a, data_b, perplex):
     # Combine data into a single array
     t_data = np.row_stack((data_a,data_b))
 
+    print(t_data.shape)
+    
     # Convert data to float64 matrix. float64 is need for bh_sne
     t_data = np.asarray(t_data).astype('float64')
     t_data = t_data.reshape((t_data.shape[0], -1))
 
+    print(t_data.shape)
+    
     # Run t-SNE    
     vis_data = TSNE(n_components=2, 
                     perplexity=perplex, n_jobs=8).fit_transform(t_data)
