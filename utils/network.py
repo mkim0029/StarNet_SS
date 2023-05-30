@@ -121,8 +121,8 @@ class ConvNextStem(nn.Sequential):
                  kernel_size: int, stride: int):
         super().__init__(
             nn.Conv1d(in_features, out_features, kernel_size=kernel_size, stride=stride),
-            #nn.BatchNorm1d(out_features)
-            nn.GroupNorm(num_groups=1, num_channels=out_features)
+            nn.BatchNorm1d(out_features)
+            #nn.GroupNorm(num_groups=1, num_channels=out_features)
         )
 
 class ConvNextEncoder(nn.Module):
