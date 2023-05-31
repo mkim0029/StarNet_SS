@@ -279,9 +279,8 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                                                                   losses['train_src_tasks_chunk'][-1][i]))
                         print('\t\tTarget Chunk %s Task Loss: %0.3f' % (task.capitalize(),
                                                                   losses['train_tgt_tasks_chunk'][-1][i]))
-                if model.module.use_split_convs:
-                    print('\t\tSource Feature Loss: %0.3f' % (losses['train_src_feats'][-1]))
-                    print('\t\tTarget Feature Loss: %0.3f' % (losses['train_tgt_feats'][-1]))
+                print('\t\tSource Feature Loss: %0.3f' % (losses['train_src_feats'][-1]))
+                print('\t\tTarget Feature Loss: %0.3f' % (losses['train_tgt_feats'][-1]))
                 print('\tValidation Dataset')
                 if model.module.num_mm_labels>0:
                     for i, key in enumerate(model.module.multimodal_keys):
