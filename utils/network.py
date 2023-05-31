@@ -437,6 +437,30 @@ class StarNet(torch.nn.Module):
         if len(self.tasks)>0:
             self.task_predictor.eval()
             
+    def predictor_train_mode(self):
+        '''Set the label estimator heads to train mode.'''
+            
+        if self.d_model>0:
+            self.encoder_inp_layer.eval()
+            self.pos_encoder.eval()
+
+        self.feature_encoder_sh.eval()
+        
+        if self.use_split_convs:
+            self.feature_encoder_labels.eval()
+            if len(self.tasks)>0:
+                self.feature_encoder_tasks.eval()
+
+        if self.num_mm_labels>0:
+            for classifier in self.label_classifiers:
+                classifier.train()
+                
+        if self.num_um_labels>0:
+            self.unimodal_predictor.train()
+            
+        if len(self.tasks)>0:
+            self.task_predictor.eval()
+            
     def all_parameters(self):
         '''Create an iterable list of all network parameters.'''
         parameters = []        

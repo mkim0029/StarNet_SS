@@ -62,6 +62,8 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
         
     if mode=='train':
         model.module.train_mode()
+    elif mode=='train head':
+        model.module.predictor_train_mode()
     else:
         model.module.eval_mode()
         
