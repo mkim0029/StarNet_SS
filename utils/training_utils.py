@@ -171,7 +171,7 @@ def run_iter(model, src_batch, tgt_batch, optimizer, lr_scheduler,
                 total_loss = total_loss + 1/len(tgt_task_losses)*tgt_task_losses[i]/2*target_task_weights[i]
                 total_loss = total_loss + 1/len(tgt_task_losses)*tgt_task_losses_chunk[i]/2*target_task_weights[i]
         
-    if 'train' in mode==:        
+    if 'train' in mode:        
         # Update the gradients
         total_loss.backward()
 
