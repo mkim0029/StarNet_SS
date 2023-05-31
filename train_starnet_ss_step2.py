@@ -199,7 +199,8 @@ elif 'l1' in feat_loss_fn.lower():
 elif 'cosine' in feat_loss_fn.lower():
     feat_loss_fn = CosineSimilarityLoss()
 
-cur_iter +=1
+cur_iter += 1
+print(losses)
 def train_network(model, optimizer, lr_scheduler, cur_iter):
     print('Training the network with a batch size of %i...' % (batch_size))
     print('Progress will be displayed every %i batch iterations and the model will be saved every %i minutes.'%
@@ -255,6 +256,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
                                              target_val_batch, 
                                              losses_cp)
 
+                print(losses_cp)
                 # Calculate averages
                 for k in losses_cp.keys():
                     losses[k].append(np.mean(np.array(losses_cp[k]), axis=0))
