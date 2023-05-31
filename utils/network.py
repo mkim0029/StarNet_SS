@@ -135,6 +135,7 @@ class ConvNextEncoder(nn.Module):
         depths: List[int],
         widths: List[int],
         drop_p: float = .0,
+        pool_length: int = 0,
     ):
         super().__init__()
         self.stem = ConvNextStem(in_channels, stem_features, stem_filt_size, stem_stride)
@@ -155,11 +156,19 @@ class ConvNextEncoder(nn.Module):
             ]
         )
         
+        # Avg pooling layer
+        if pool_length>0:
+            self.pool_layer = torch.nn.AdaptiveAvgPool1d(pool_length)
+        else:
+            self.pool_layer = None
+        
 
     def forward(self, x):
         x = self.stem(x)
         for stage in self.stages:
             x = stage(x)
+        if self.pool_layer is not None:
+            x = self.pool_layer(x)
         return x
 
 class StarNet_convs(torch.nn.Module):
@@ -249,7 +258,12 @@ class StarNet(torch.nn.Module):
         self.task_stds = torch.tensor(eval(architecture_config['task_stds'])).to(device)
         self.device = device
           
-        self.use_split_convs = len(self.num_filters_sp)>0   
+        self.use_split_convs = len(self.num_filters_sp)>0
+        
+        if self.use_split_convs:
+            pooling_sh = 0
+        else:
+            pooling_sh = pool_length
         
         in_channels = 1
         if self.d_model>0:
@@ -276,7 +290,8 @@ class StarNet(torch.nn.Module):
                                                   stem_filt_size=stem_filt_size, 
                                                   stem_stride=stem_stride, 
                                                   depths=conv_depths_sh, 
-                                                  widths=conv_widths_sh).to(device)
+                                                  widths=conv_widths_sh,
+                                                 pool_length=pool_length).to(device)
         
         # Split convolutional layers
         if self.use_split_convs:
@@ -507,7 +522,10 @@ class StarNet(torch.nn.Module):
 
             if len(self.tasks)>0:
                 # Predict tasks
-                task_labels = self.task_predictor(x_task)
+                if self.use_split_convs:
+                    task_labels = self.task_predictor(x_task)
+                else:
+                    task_labels = self.task_predictor(x)
                 if denorm_out:
                     # Denormalize task labels
                     task_labels = self.denormalize_tasks(task_labels)
