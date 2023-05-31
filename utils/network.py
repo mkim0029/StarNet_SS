@@ -487,6 +487,19 @@ class StarNet(torch.nn.Module):
             parameters.append(self.task_predictor.parameters())
         
         return chain(*parameters)
+    
+    def predictor_parameters(self):
+        '''Create an iterable list of all label estimator head parameters.'''
+        parameters = []        
+        
+        if self.num_mm_labels>0:
+            for net in self.label_classifiers:
+                parameters.append(net.parameters())
+        
+        if self.num_um_labels>0:
+            parameters.append(self.unimodal_predictor.parameters())
+        
+        return chain(*parameters)
         
     def forward(self, x, pixel_indx=None, norm_in=True, 
                 denorm_out=False, take_mode=False,

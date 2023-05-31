@@ -81,14 +81,14 @@ with h5py.File(source_data_file, "r") as f:
 model = build_starnet(config, device, model_name, mutlimodal_vals)
 
 # Construct optimizer
-optimizer = torch.optim.AdamW(model.all_parameters(), 
+optimizer = torch.optim.AdamW(model.predictor_parameters(), 
                              lr,
                              weight_decay=weight_decay, 
                              betas=(0.9, 0.999))
 
 # Learning rate scheduler
 lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr,
-                                                   total_steps=int(total_batch_iters), 
+                                                   total_steps=15000, 
                                                    pct_start=0.05, anneal_strategy='cos', 
                                                    cycle_momentum=True, 
                                                    base_momentum=0.85, 
@@ -98,8 +98,7 @@ lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr,
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, losses, cur_iter = load_model_state(model, model_filename, 
-                                           optimizer, lr_scheduler)
+model, losses, cur_iter = load_model_state(model, model_filename)
 
 # Multi GPUs
 model = torch.nn.parallel.DataParallel(model, device_ids=list(range(num_gpus)), dim=0)
