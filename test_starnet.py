@@ -119,7 +119,7 @@ plot_resid(label_keys, tgt_labels, pred_labels,
                y_lims = [1000, 1.2, 1.5, 0.8], 
                savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
     
-isochrone_fn = 'data/isochrone_data.h5'
+isochrone_fn = os.path.join(cur_dir, 'data/isochrone_data.h5')
 
 # Plot isochrone comparison
 print('Plotting veracity...')
