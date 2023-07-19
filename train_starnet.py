@@ -34,6 +34,8 @@ data_dir = args.data_dir
 # Directories
 config_dir = os.path.join(cur_dir, 'configs/')
 model_dir = os.path.join(cur_dir, 'models/')
+if not os.path.exists(model_dir):
+    os.mkdir(model_dir)
 if data_dir is None:
     data_dir = os.path.join(cur_dir, 'data/')
 
