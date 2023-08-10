@@ -36,13 +36,16 @@ def parseArguments():
     # Config params
     parser.add_argument("-sfn", "--source_data_file", 
                         help="Source data file for training.", 
-                        type=str, default='gaia_grid.h5') 
+                        type=str, default='gaia_grid_crossref.h5') 
     parser.add_argument("-tfn", "--target_data_file", 
                         help="Target data file for training.", 
-                        type=str, default='gaia_observed.h5') 
+                        type=str, default='gaia_observed_crossref.h5') 
     parser.add_argument("-lk", "--label_keys",  type=str, nargs='+',
                         help="Dataset keys for labels in data file.", 
                         default="['teff', 'feh', 'logg', 'alpha']") 
+    parser.add_argument("-tvs", "--target_val_survey", 
+                        help="Survey for target domain validation label data.", 
+                        type=str, default='APOGEE') 
     parser.add_argument("-mnf", "--max_noise_factor", 
                         help="Maximum fraction of continuum to set random noise to.", 
                         type=float, default=0.0)
@@ -123,6 +126,7 @@ elif user_input=='o':
     config['DATA'] = {'source_data_file': args.source_data_file, 
                       'target_data_file': args.target_data_file, 
                       'label_keys': args.label_keys,
+                      'target_val_survey': args.target_val_survey,
                       'max_noise_factor': args.max_noise_factor}
     
     config['TRAINING'] = {'batch_size': args.batch_size,
