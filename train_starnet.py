@@ -47,6 +47,7 @@ config.read(config_dir+model_name+'.ini')
 source_data_file = os.path.join(data_dir, config['DATA']['source_data_file'])
 target_data_file = os.path.join(data_dir, config['DATA']['target_data_file'])
 label_keys = eval(config['DATA']['label_keys'])
+target_val_survey = config['DATA']['target_val_survey']
 max_noise_factor = float(config['DATA']['max_noise_factor'])
 batch_size = int(config['TRAINING']['batch_size'])
 lr = float(config['TRAINING']['lr'])
@@ -120,6 +121,7 @@ source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset,
 target_val_dataset = SpectraDatasetSimple(target_data_file, 
                                           dataset='val', 
                                           label_keys=label_keys,
+                                          label_survey=target_val_survey,
                                           max_noise_factor=0.0)
 
 target_val_dataloader = torch.utils.data.DataLoader(target_val_dataset,

@@ -30,11 +30,13 @@ class SpectraDatasetSimple(torch.utils.data.Dataset):
     Dataset loader for the spectral datasets.
     """
 
-    def __init__(self, data_file, dataset, label_keys, max_noise_factor=0.0):
+    def __init__(self, data_file, dataset, label_keys, 
+                 label_survey=None, max_noise_factor=0.0):
         
         self.data_file = data_file
         self.dataset = dataset.lower()
         self.label_keys = label_keys
+        self.label_survey = label_survey
         self.max_noise_factor = max_noise_factor
         # Determine the number of pixels in each spectrum
         self.num_pixels = self.determine_num_pixels()
@@ -68,8 +70,11 @@ class SpectraDatasetSimple(torch.utils.data.Dataset):
             # Load target stellar labels
             data_keys = f.keys()
             labels = []
-            for k in self.label_keys:
+            for k in self.label_keys:                
                 data_key = k + ' %s' % self.dataset
+                if self.label_survey is not None:
+                    data_key = self.label_survey + ' ' + data_key
+                
                 if data_key in data_keys:
                     labels.append(f[data_key][idx])
                 else:
