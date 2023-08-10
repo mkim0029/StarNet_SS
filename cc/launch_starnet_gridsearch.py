@@ -35,7 +35,7 @@ for params in param_combos:
             for k_ in k.split('/'):
                 param_cmd += '-%s %s '% (k_, params[k])
     
-    launch_cmd = ('python launch_starnet.py starnet_ss_%i' % (model_num) +
+    launch_cmd = ('python launch_starnet.py starnet_%i' % (model_num) +
                   ' %s -co " %s"' % (param_cmd, param_cmd))
     print(launch_cmd)
     
