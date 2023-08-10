@@ -28,7 +28,7 @@ def parseArguments():
                         type=str, default='def-sfabbro')
     parser.add_argument("-mem", "--memory", 
                         help="Memory per job in GB.", 
-                        type=int, default=32)
+                        type=int, default=16)
     parser.add_argument("-ncp", "--num_cpu", 
                         help="Number of CPU cores per job.", 
                         type=int, default=10)
