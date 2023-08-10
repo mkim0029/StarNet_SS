@@ -199,7 +199,7 @@ cmd = 'python %s ' % (os.path.join(cur_dir, 'queue_cc.py'))
 cmd += '--account "%s" --todo_dir "%s" ' % (args.account, todo_dir)
 cmd += '--done_dir "%s" --output_dir "%s" ' % (done_dir, stdout_dir)
 cmd += '--num_jobs 1 --num_runs %i --num_gpu 1 ' % (args.num_runs)
-cmd += '--num_cpu %i --mem %sG --time_limit "00-03:00"' % (args.num_cpu, args.memory)
+cmd += '--num_cpu %i --mem %sG --time_limit "00-01:00"' % (args.num_cpu, args.memory)
 
 # Execute jobs
 os.system(cmd)

@@ -2,15 +2,15 @@ import os
 import itertools
 
 # Starting number for jobs
-start_model_num = 2
+start_model_num = 4
 
 # Different parameters to try out 
 # (check the launch script to see what these keys correspond to)
 grid_params = {'bs': [64, 128],
-               'mnf': [0.,0.05,0.1],
+               'mnf': [0.1, 0.2],
                'lr':[0.001, 0.003, 0.0005],
-               'lrf':[10000, 1000],
-               'ti': [50000, 100000],
+               'lrf':[100, 1000],
+               'ti': [30000, 60000],
                'wd': [0.0, 0.001, 0.01]}
 
 # Create a list of all possible parameter combinations
