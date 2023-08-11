@@ -10,6 +10,7 @@ model_dir = os.path.join(cur_dir, 'models/')
 config_dir = os.path.join(cur_dir, 'configs/')
 
 models_compare = []
+incomplete_models = []
 for i in range(2, 224):
     model_name = 'starnet_%i'%i
 
@@ -39,6 +40,7 @@ for i in range(2, 224):
             batch_iters = losses['batch_iters'][-1]
             if batch_iters<int(config['TRAINING']['total_batch_iters']):
                 print('Incomplete training.')
+                incomplete_models.append(i)
             
             print('\tBatch iters: %i' % (batch_iters))
             print('\tSrc Loss: %0.6f' % (src_loss))
@@ -57,7 +59,12 @@ for i in range(2, 224):
             '''
             continue
 
+print('Incomplete models:')
+for i in incomplete_models:
+    print(i)
+
 models_compare = np.array(models_compare)
 print('Model %i performed the best at predicting source labels with %0.5f' % (models_compare[np.nanargmin(models_compare[:,1]),0], models_compare[np.nanargmin(models_compare[:,1]),1]))
 print('Model %i performed the best at predicting target labels with %0.5f' % (models_compare[np.nanargmin(models_compare[:,2]),0],
 models_compare[np.nanargmin(models_compare[:,2]),2]))
+
