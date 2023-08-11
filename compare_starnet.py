@@ -10,7 +10,7 @@ model_dir = os.path.join(cur_dir, 'models/')
 config_dir = os.path.join(cur_dir, 'configs/')
 
 models_compare = []
-for i in range(1, 148):
+for i in range(2, 224):
     model_name = 'starnet_%i'%i
 
     model_filenames =  glob.glob(os.path.join(model_dir,model_name+'_*.pth.tar'))
@@ -35,7 +35,12 @@ for i in range(1, 148):
 
             models_compare.append([i, src_loss, tgt_loss])
             print('Model %i: %s' % (i, config['Notes']['comment']))
-            print('\tBatch iters: %i' % (losses['batch_iters'][-1]))
+            
+            batch_iters = losses['batch_iters'][-1]
+            if batch_iters<config['TRAINING']['total_batch_iters']:
+                print('Incomplete training.')
+            
+            print('\tBatch iters: %i' % (batch_iters))
             print('\tSrc Loss: %0.6f' % (src_loss))
             print('\tTgt Loss: %0.6f' % (tgt_loss))
         except:
