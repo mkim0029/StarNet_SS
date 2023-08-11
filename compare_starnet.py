@@ -37,7 +37,7 @@ for i in range(2, 224):
             print('Model %i: %s' % (i, config['Notes']['comment']))
             
             batch_iters = losses['batch_iters'][-1]
-            if batch_iters<config['TRAINING']['total_batch_iters']:
+            if batch_iters<int(config['TRAINING']['total_batch_iters']):
                 print('Incomplete training.')
             
             print('\tBatch iters: %i' % (batch_iters))
