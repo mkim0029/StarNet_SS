@@ -63,6 +63,7 @@ lr = float(config['LINEAR PROBE TRAINING']['lr'])
 final_lr_factor = float(config['LINEAR PROBE TRAINING']['final_lr_factor'])
 weight_decay = float(config['LINEAR PROBE TRAINING']['weight_decay'])
 total_batch_iters = int(config['LINEAR PROBE TRAINING']['total_batch_iters'])
+label_smoothing = float(config['LINEAR PROBE TRAINING']['label_smoothing'])
         
 # Calculate multimodal values from source training set
 with h5py.File(source_data_file, "r") as f:
@@ -170,6 +171,7 @@ def train_network(model, optimizer, lr_scheduler, cur_iter):
             model, optimizer, lr_scheduler, losses_cp = linear_probe_iter(model, 
                                                                           optimizer, 
                                                                           lr_scheduler, 
+                                                                          label_smoothing,
                                                                           source_train_batch,
                                                                           losses_cp, 
                                                                           cur_iter, 

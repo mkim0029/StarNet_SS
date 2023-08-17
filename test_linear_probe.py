@@ -6,8 +6,10 @@ sys.path.append(os.path.join(cur_dir,'mae_utils'))
 from data_loader import SpectraDataset, batch_to_device
 from training_utils import str2bool, parseArguments, LARS
 from mae_network import build_mae, load_model_state
-from analysis_fns import (plot_progress, mae_predict, encoder_predict, 
-                          tsne_comparison, plot_5_samples, plot_spec_resid_density)
+from analysis_fns import (plot_progress, plot_val_MAEs, encoder_predict,
+                          predict_labels,
+                          plot_resid_violinplot,
+                          plot_resid, tsne_comparison, compare_veracity)
 
 import configparser
 import time
@@ -64,7 +66,7 @@ model = build_mae(config, device, model_name, mutlimodal_vals)
 
 # Load model state from previous training (if any)
 model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, losses, cur_iter,_ = load_model_state(model, model_filename)
+model, losses, _ ,_ = load_model_state(model, model_filename)
 
 # Create data loaders
 source_train_dataset = SpectraDataset(source_data_file, 
@@ -130,54 +132,73 @@ print('The target validation set consists of %i spectra.' % (len(target_val_data
 
 # Plot the training progress
 plot_progress(losses, 
-              y_lims=[(0,0.1), (0.12,0.22)],
-             savename=os.path.join(figs_dir, '%s_train_progress.png'%model_name))
+              y_lims=[(0,3), (0,0.15)],lp=True,
+             savename=os.path.join(figs_dir, '%s_lp_train_progress.png'%model_name))
 
-# Predict on masked spectra
-(pred_spectra_src, mask_spectra_src, 
- orig_spectra_src, latents_src) = mae_predict(model, 
-                                              source_val_dataloader, 
-                                              device, mask_ratio=mask_ratio)
+plot_val_MAEs(losses, multimodal_keys+unimodal_keys, 
+              y_lims=[(0.,600.), (0.,0.6), (0.,1.0), (0.,.3), (0,0.2)],
+             savename=os.path.join(figs_dir, '%s_val_progress.png'%model_name))
 
-(pred_spectra_tgt, mask_spectra_tgt, 
- orig_spectra_tgt, latents_tgt) = mae_predict(model, 
-                                              target_val_dataloader, 
-                                              device, mask_ratio=mask_ratio)
-
-# Encode full spectra
-latents_full_src = encoder_predict(model, source_val_dataloader, 
-                                   device, mask_ratio=0.)
-
-latents_full_tgt = encoder_predict(model, target_val_dataloader, 
-                                   device, mask_ratio=0.)
-
+# Predict on source
+(label_keys, tgt_labels, pred_labels, feature_maps_src) = predict_labels(model,
+                                                                source_val_dataloader, 
+                                                                device=device, 
+                                                                take_mode=False)
 # Save predictions
-np.save(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name), latents_full_src)
-np.save(os.path.join(results_dir, '%s_target_feature_maps.npy'%model_name), latents_tgt)
+np.save(os.path.join(results_dir, '%s_source_preds.npy'%model_name), pred_labels)
+np.save(os.path.join(results_dir, '%s_source_tgts.npy'%model_name), tgt_labels)
+np.save(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name), feature_maps_src)
 
-plot_5_samples(wave_grid, orig_spectra_src, mask_spectra_src, pred_spectra_src, 
-               savename=os.path.join(figs_dir, '%s_src_samples.png'%model_name))
+# Save a plot
+plot_resid_violinplot(label_keys, tgt_labels, pred_labels,
+                      y_lims=[1000, 1.2, 1.5, 0.8], 
+                      savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
 
-plot_5_samples(wave_grid, orig_spectra_tgt, mask_spectra_tgt, pred_spectra_tgt, 
-               savename=os.path.join(figs_dir, '%s_tgt_samples.png'%model_name))
+(label_keys, tgt_labels, pred_labels, feature_maps_tgt) = predict_labels(model,
+                                                                target_val_dataloader, 
+                                                                device=device, 
+                                                                take_mode=False)
+'''
+(tgt_mm_labels2, tgt_um_labels, 
+ pred_mm_labels2, pred_um_labels, feature_maps_tgt2) = predict_labels(model, target_train_dataloader, 
+                                                  device=device, take_mode=False)
 
-plot_spec_resid_density(wave_grid, orig_spectra_src, mask_spectra_src, pred_spectra_src, 
-                            ylim=(-0.05, 0.05), hist=True, kde=True,
-                            dist_bins=180, hex_grid=100, bias='med', scatter='std',
-                            bias_label=r'$\overline{{m}}$ \ ',
-                            scatter_label=r'$s$ \ ',
-                            cmap="ocean_r", 
-                        savename=os.path.join(figs_dir, '%s_spec_resid_src.png'%model_name))
+pred_mm_labels = np.vstack((pred_mm_labels, pred_mm_labels2))
+tgt_mm_labels = np.vstack((tgt_mm_labels, tgt_mm_labels2))
+'''
+# Save predictions
+np.save(os.path.join(results_dir, '%s_target_preds.npy'%model_name), pred_labels)
+np.save(os.path.join(results_dir, '%s_target_tgts.npy'%model_name), tgt_labels)
+np.save(os.path.join(results_dir, '%s_target_feature_maps.npy'%model_name), feature_maps_tgt)
 
-plot_spec_resid_density(wave_grid, orig_spectra_tgt, mask_spectra_tgt, pred_spectra_tgt, 
-                            ylim=(-0.15, 0.15), hist=True, kde=True,
-                            dist_bins=180, hex_grid=100, bias='med', scatter='std',
-                            bias_label=r'$\overline{{m}}$ \ ',
-                            scatter_label=r'$s$ \ ',
-                            cmap="ocean_r", 
-                        savename=os.path.join(figs_dir, '%s_spec_resid_tgt.png'%model_name))
+# Save a plot
+if len(np.unique(tgt_labels[:,0]))<40:
+    plot_resid_violinplot(label_keys, tgt_labels, pred_labels,
+                          y_lims=[1000, 1.2, 1.5, 0.8], 
+                          savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
+else:
+    plot_resid(label_keys, tgt_labels, pred_labels,
+               y_lims = [1000, 1.2, 1.5, 0.8], 
+               savename=os.path.join(figs_dir, '%s_target_val_results.png'%model_name))
+    
 
-tsne_comparison(latents_full_src, latents_full_tgt, 
+# Plot isochrone comparison
+print('Plotting veracity...')
+isochrone_fn = os.path.join(cur_dir, 'data/isochrone_data.h5')
+compare_veracity(isochrone_fn, teff1=tgt_labels[:,0], 
+                logg1=tgt_labels[:,2], 
+                feh1=tgt_labels[:,1], 
+                teff2=pred_labels[:,0], 
+                logg2=pred_labels[:,2], 
+                feh2=pred_labels[:,1],
+                label1='APOGEE', label2='StarNet',
+                feh_min=-1, feh_max=0.5, 
+                feh_lines=[-1., -0.5, 0.0, 0.5], 
+                savename=os.path.join(figs_dir, '%s_target_val_veracity.png'%model_name))
+
+print('Finished.')
+    
+tsne_comparison(feature_maps_src, feature_maps_tgt, 
                 label1=r'$\mathbf{\mathcal{Z}_{synth}}$',
                 label2=r'$\mathbf{\mathcal{Z}_{obs}}$',
                savename=os.path.join(figs_dir, '%s_feature_tsne.png'%model_name))

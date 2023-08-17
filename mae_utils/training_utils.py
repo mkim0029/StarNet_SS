@@ -194,7 +194,7 @@ def mae_iter(model, optimizer, lr_scheduler, #loss_scaler,
     
     return model, optimizer, lr_scheduler, losses_cp
 
-def linear_probe_iter(model, optimizer, lr_scheduler, src_batch,
+def linear_probe_iter(model, optimizer, lr_scheduler, label_smoothing, src_batch,
                       losses_cp, cur_iter, device):
 
     model.train_head_mode()
@@ -218,8 +218,10 @@ def linear_probe_iter(model, optimizer, lr_scheduler, src_batch,
         src_classes = model.multimodal_to_class(src_batch['multimodal labels'])
         for i in range(model.num_mm_labels):
             # Evaluate loss on predicted labels
-            src_mm_loss = torch.nn.NLLLoss()(model_outputs['multimodal labels'][i], 
-                                             src_classes[i])
+            #src_mm_loss = torch.nn.NLLLoss()(model_outputs['multimodal labels'][i], 
+            #                                 src_classes[i])
+            src_mm_loss = nn.CrossEntropyLoss(label_smoothing=label_smoothing)(model_outputs['multimodal labels'][i], 
+                                              src_classes[i])
             
             src_mm_loss_tot += 1/model.num_mm_labels * src_mm_loss
     # Add to total loss

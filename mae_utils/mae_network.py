@@ -156,7 +156,7 @@ class MaskedAutoencoderViT(nn.Module):
                 self.label_classifiers.append(StarNet_head(in_features=in_features, 
                                                           out_features=len(vals), 
                                                            dropout=head_dropout,
-                                                          logsoftmax=True).to(device))
+                                                          logsoftmax=False).to(device))
                 '''
                 self.label_classifiers.append(StarNet_head_old(in_features=in_features, 
                                                           out_features=len(vals), 
@@ -194,8 +194,12 @@ class MaskedAutoencoderViT(nn.Module):
         # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)
         
-        for net in self.label_classifiers:
-            net.apply(self._init_weights)
+        if self.num_mm_labels>0:
+            for net in self.label_classifiers:
+                net.apply(self._init_weights)
+                
+        if self.num_um_labels>0:
+            self.unimodal_predictor.apply(self._init_weights)
         
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
@@ -220,7 +224,8 @@ class MaskedAutoencoderViT(nn.Module):
         for i, (cla, c_vals) in enumerate(zip(classes, self.mutlimodal_vals)):
             
             # Turn predictions in "probabilities"
-            prob = torch.exp(cla)
+            #prob = torch.exp(cla)
+            prob = torch.nn.Softmax(dim=1)(cla)
             
             if take_mode:
                 # Take the class with the highest probability
@@ -371,6 +376,9 @@ class MaskedAutoencoderViT(nn.Module):
                 param.requires_grad = True
             if ('mlp.fc1' in name) and (self.lp_enc_layers>1):
                 param.requires_grad = True
+                
+        for name, param in self.unimodal_predictor.named_parameters():
+            param.requires_grad = True
             
     def head_parameters(self):
         '''Create an iterable list of all network head parameters.'''
@@ -584,9 +592,12 @@ def build_mae(config, device, model_name, mutlimodal_vals):
     print('MAE Architecture:')
     print(model)
     
-    print('Classifier Architecture:')
-    print(model.label_classifiers)
-    
+    if model.num_mm_labels>0:
+        print('Classifier1 Architecture:')
+        print(model.label_classifiers[0])
+    if model.num_um_labels>0:
+        print('Linear Head Architecture:')
+        print(model.unimodal_predictor)
         
     return model
 
@@ -628,8 +639,9 @@ def load_model_state(model, model_filename, optimizer=None, lr_scheduler=None,
         # Load model weights
         model.load_state_dict(checkpoint['model'])
         try:
-            for net, state in zip(model.label_classifiers, checkpoint['classifier models']):
-                net.load_state_dict(state)
+            if model.num_mm_labels>0:
+                for net, state in zip(model.label_classifiers, checkpoint['classifier models']):
+                    net.load_state_dict(state)
         except KeyError:
             pass
         

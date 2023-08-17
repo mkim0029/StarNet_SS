@@ -156,10 +156,12 @@ class SpectraDataset(torch.utils.data.Dataset):
             unimodal_labels = []
             for k in self.unimodal_keys:
                 data_key = k + ' %s' % self.dataset
+                if self.label_survey is not None:
+                    data_key = self.label_survey + ' ' + data_key
                 if data_key in data_keys:
                     unimodal_labels.append(f[data_key][idx])
-                elif ('mg' in data_key) & ('alpha %s' % self.dataset in data_keys):
-                    unimodal_labels.append(f['alpha %s' % self.dataset][idx])
+                elif ('mg' in data_key) & (data_key.replace('mg', 'alpha') in data_keys):
+                    unimodal_labels.append(f[data_key.replace('mg', 'alpha')][idx])
                 else:
                     unimodal_labels.append(np.nan)
             unimodal_labels = torch.from_numpy(np.asarray(unimodal_labels).astype(np.float32))

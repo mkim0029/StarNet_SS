@@ -638,8 +638,9 @@ def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
             batch = batch_to_device(batch, device)
 
             # Collect target data
-            tgt_mm_labels.append(batch['multimodal labels'].data.cpu().numpy())
-            if len(batch['unimodal labels'][0])>0:
+            if model.num_mm_labels>0:
+                tgt_mm_labels.append(batch['multimodal labels'].data.cpu().numpy())
+            if model.num_um_labels>0:
                 tgt_um_labels.append(batch['unimodal labels'].data.cpu().numpy())
 
             # Perform forward propagation
@@ -655,19 +656,31 @@ def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
 
                 
             # Save predictions
-            pred_mm_labels.append(model_outputs['multimodal labels'].data.cpu().numpy())
             feature_maps.append(model_outputs['feature map'].data.cpu().numpy())
-            if len(batch['unimodal labels'][0])>0:
+            if model.num_mm_labels>0:
+                pred_mm_labels.append(model_outputs['multimodal labels'].data.cpu().numpy())
+            if model.num_um_labels>0:
                 pred_um_labels.append(model_outputs['unimodal labels'].data.cpu().numpy())
 
-        tgt_mm_labels = np.vstack(tgt_mm_labels)
-        pred_mm_labels = np.vstack(pred_mm_labels)
         feature_maps = np.vstack(feature_maps)
-        if len(tgt_um_labels)>0:
+        if model.num_mm_labels>0:
+            tgt_mm_labels = np.vstack(tgt_mm_labels)
+            pred_mm_labels = np.vstack(pred_mm_labels)
+        if model.num_um_labels>0:
             tgt_um_labels = np.vstack(tgt_um_labels)
             pred_um_labels = np.vstack(pred_um_labels)
+        if (model.num_mm_labels>0)&(model.num_um_labels>0):
+            tgt_labels = np.hstack((tgt_mm_labels, tgt_um_labels))
+            pred_labels = np.hstack((pred_mm_labels, pred_um_labels))
+        elif model.num_mm_labels>0:
+            tgt_labels = tgt_mm_labels
+            pred_labels = pred_mm_labels
+        elif model.num_um_labels>0:
+            tgt_labels = tgt_um_labels
+            pred_labels = pred_um_labels
+        label_keys = model.multimodal_keys + model.unimodal_keys
         
-    return tgt_mm_labels, tgt_um_labels, pred_mm_labels, pred_um_labels, feature_maps
+    return label_keys, tgt_labels, pred_labels, feature_maps
 
 def run_tsne(data_a, data_b, perplex):
 
