@@ -57,6 +57,8 @@ std_min = float(config['DATA']['std_min'])
 augs = eval(config['DATA']['augs'])
 aug_means = eval(config['DATA']['aug_means'])
 aug_stds = eval(config['DATA']['aug_stds'])
+use_prev_ae = str2bool(config['TRAINING']['use_prev_ae'])
+prev_ae_name = config['TRAINING']['prev_ae_name']
 batch_size = int(config['TRAINING']['batch_size'])
 lr = float(config['TRAINING']['lr'])
 final_lr_factor = float(config['TRAINING']['final_lr_factor'])
@@ -94,9 +96,13 @@ lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr,
                                                    three_phase=False)
 
 # Load model state from previous training (if any)
-model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
+if use_prev_ae:
+    model_filename = os.path.join(model_dir, prev_ae_name+'.pth.tar')
+else:
+    model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
 model, losses, cur_iter, _ = load_model_state(model, model_filename, 
                                            optimizer, lr_scheduler)#, loss_scaler)
+model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
     
 # Create data loaders
 source_train_dataset = SpectraDataset(source_data_file, 

@@ -57,6 +57,8 @@ std_min = float(config['DATA']['std_min'])
 augs = eval(config['DATA']['augs'])
 aug_means = eval(config['DATA']['aug_means'])
 aug_stds = eval(config['DATA']['aug_stds'])
+use_prev_ae = str2bool(config['TRAINING']['use_prev_ae'])
+prev_ae_name = config['TRAINING']['prev_ae_name']
 optimizer_method = config['LINEAR PROBE TRAINING']['optimizer']
 batch_size = int(config['LINEAR PROBE TRAINING']['batch_size'])
 lr = float(config['LINEAR PROBE TRAINING']['lr'])
@@ -95,11 +97,24 @@ lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, lr,
                                                    three_phase=False)
 
 # Load model state from previous training (if any)
-model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
-model, losses, _, cur_iter = load_model_state(model, model_filename,
+model_filename =  os.path.join(model_dir, model_name+'_lp.pth.tar')
+fresh_model = True
+if os.path.exists(model_filename):
+    fresh_model = False
+elif use_prev_ae:
+    model_filename = os.path.join(model_dir, prev_ae_name+'.pth.tar')
+else:
+    model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
+if fresh_model:
+    model, losses, _, _ = load_model_state(model, model_filename)
+    cur_iter = 1
+else:
+    model, losses, _, cur_iter = load_model_state(model, model_filename,
                                               lp_optimizer=optimizer, 
                                               lp_lr_scheduler=lr_scheduler)
-
+# Save under new name
+model_filename =  os.path.join(model_dir, model_name+'_lp.pth.tar')
+    
 model.freeze_mae()
 
 # Create data loaders

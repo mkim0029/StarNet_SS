@@ -46,6 +46,8 @@ unimodal_keys = eval(config['DATA']['unimodal_keys'])
 target_val_survey = config['DATA']['target_val_survey']
 continuum_normalize = str2bool(config['DATA']['continuum_normalize'])
 divide_by_median = str2bool(config['DATA']['divide_by_median'])
+use_prev_ae = str2bool(config['TRAINING']['use_prev_ae'])
+prev_ae_name = config['TRAINING']['prev_ae_name']
 batch_size = int(config['TRAINING']['batch_size'])
 mask_ratio = float(config['TRAINING']['mask_ratio'])
 
@@ -63,7 +65,10 @@ with h5py.File(source_data_file, "r") as f:
 model = build_mae(config, device, model_name, mutlimodal_vals)
 
 # Load model state from previous training (if any)
-model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
+if use_prev_ae:
+    model_filename = os.path.join(model_dir, prev_ae_name+'.pth.tar')
+else:
+    model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
 model, losses, cur_iter,_ = load_model_state(model, model_filename)
 
 # Create data loaders

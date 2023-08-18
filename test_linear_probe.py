@@ -65,7 +65,7 @@ with h5py.File(source_data_file, "r") as f:
 model = build_mae(config, device, model_name, mutlimodal_vals)
 
 # Load model state from previous training (if any)
-model_filename =  os.path.join(model_dir, model_name+'.pth.tar')
+model_filename =  os.path.join(model_dir, model_name+'_lp.pth.tar')
 model, losses, _ ,_ = load_model_state(model, model_filename)
 
 # Create data loaders
