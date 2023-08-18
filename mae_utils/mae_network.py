@@ -377,8 +377,9 @@ class MaskedAutoencoderViT(nn.Module):
             if ('mlp.fc1' in name) and (self.lp_enc_layers>1):
                 param.requires_grad = True
                 
-        for name, param in self.unimodal_predictor.named_parameters():
-            param.requires_grad = True
+        if self.num_um_labels>0:
+            for name, param in self.unimodal_predictor.named_parameters():
+                param.requires_grad = True
             
     def head_parameters(self):
         '''Create an iterable list of all network head parameters.'''
