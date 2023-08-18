@@ -22,7 +22,7 @@ def parseArguments():
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=2)
+                        type=int, default=1)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
@@ -32,6 +32,9 @@ def parseArguments():
     parser.add_argument("-ncp", "--num_cpu", 
                         help="Number of CPU cores per job.", 
                         type=int, default=12)
+    parser.add_argument("-jt", "--job_time", 
+                        help="Number of hours per job.", 
+                        type=int, default=3)
     
     # Config params
     parser.add_argument("-sfn", "--source_data_file", 
@@ -45,13 +48,13 @@ def parseArguments():
                         type=str, default='gaia_wavegrid.npy')
     parser.add_argument("-mmk", "--multimodal_keys",  type=str, nargs='+',
                         help="Dataset keys for labels in data file.", 
-                        default="['teff', 'feh', 'logg', 'alpha']") 
+                        default="[]") 
     parser.add_argument("-umk", "--unimodal_keys",  type=str, nargs='+',
                         help="Dataset keys for labels in data file.", 
-                        default="[]") 
+                        default="['teff', 'feh', 'logg', 'alpha']") 
     parser.add_argument("-tvs", "--target_val_survey", 
                         help="Survey for target domain label data.", 
-                        type=str, default=None) 
+                        type=str, default='APOGEE') 
     parser.add_argument("-cn", "--continuum_normalize", 
                         help="Whether or not to continuum normalize each spectrum.", 
                         type=str, default='False')
@@ -81,10 +84,10 @@ def parseArguments():
                         default=[])
     parser.add_argument("-umm", "--unimodal_means", 
                         help="Mean value of each label used for normalization.", 
-                        default=[])
+                        default=[5375, -2.0, 2.5, 0.2])
     parser.add_argument("-ums", "--unimodal_stds", 
                         help="Standard deviation of each label used for normalization.", 
-                        default=[])
+                        default=[1600, 1.8, 1.9, 0.4])
     parser.add_argument("-sm", "--spectra_mean", 
                         help="Mean flux value in spectra.", 
                         type=float, default=1)
@@ -92,6 +95,12 @@ def parseArguments():
                         help="Standard dev of flux values in spectra.", 
                         type=float, default=0.15)
     
+    parser.add_argument("-upa", "--use_prev_ae", 
+                        help="Whether or not to skip the MAE training by using a previously trained model.", 
+                        type=str, default='False')
+    parser.add_argument("-pan", "--prev_ae_name", 
+                        help="The name of the previously trained auto-encoder.", 
+                        type=str, default='None')
     parser.add_argument("-bs", "--batch_size", 
                         help="Training batchsize.", 
                         type=int, default=64)
@@ -101,6 +110,9 @@ def parseArguments():
     parser.add_argument("-lrf", "--final_lr_factor", 
                         help="Final lr will be lr/lrf.", 
                         type=float, default=1000.0)
+    parser.add_argument("-tlw", "--target_loss_weight", 
+                        help="Loss weighting placed on samples from target domain.", 
+                        type=float, default=10.0)
     parser.add_argument("-wd", "--weight_decay", 
                         help="Weight decay for AdamW optimizer.", 
                         type=float, default=0.05)
@@ -122,16 +134,16 @@ def parseArguments():
                         type=float, default=0.01)
     parser.add_argument("-lplrf", "--lp_final_lr_factor", 
                         help="Final lr will be lr/lrf for linear probe.", 
-                        type=float, default=1000.0)
+                        type=float, default=100.0)
     parser.add_argument("-lpwd", "--lp_weight_decay", 
                         help="Weight decay for AdamW optimizer for linear probe.", 
                         type=float, default=0.0)
     parser.add_argument("-lpti", "--lp_total_batch_iters", 
                         help="Total number of batch iterations for training for linear probe.", 
-                        type=int, default=30000)
+                        type=int, default=20000)
     parser.add_argument("-lpdo", "--lp_dropout", 
                         help="Dropout ratio for linear probe.", 
-                        type=float, default=0.75)
+                        type=float, default=0.9)
     parser.add_argument("-lpel", "--num_enc_layers", 
                         help="The number of layers in the encoder to finetune (0, 1, or 2).", 
                         type=int, default=2)
@@ -227,9 +239,12 @@ elif user_input=='o':
                       'spectra_mean': args.spectra_mean,
                       'spectra_std': args.spectra_std}
     
-    config['TRAINING'] = {'batch_size': args.batch_size,
+    config['TRAINING'] = {'use_prev_ae': args.use_prev_ae,
+                          'prev_ae_name': args.prev_ae_name,
+                          'batch_size': args.batch_size,
                           'lr': args.lr,
                           'final_lr_factor': args.final_lr_factor,
+                          'target_loss_weight': args.target_loss_weight,
                           'weight_decay': args.weight_decay,
                           'total_batch_iters': args.total_batch_iters,
                           'mask_ratio': args.mask_ratio}
@@ -323,7 +338,7 @@ cmd = 'python %s ' % (os.path.join(cur_dir, 'queue_cc.py'))
 cmd += '--account "%s" --todo_dir "%s" ' % (args.account, todo_dir)
 cmd += '--done_dir "%s" --output_dir "%s" ' % (done_dir, stdout_dir)
 cmd += '--num_jobs 1 --num_runs %i --num_gpu 1 ' % (args.num_runs)
-cmd += '--num_cpu %i --mem %sG --time_limit "00-03:00"' % (args.num_cpu, args.memory)
+cmd += '--num_cpu %i --mem %sG --time_limit "00-0%i:00"' % (args.num_cpu, args.memory, args.job_time)
 
 # Execute jobs
 os.system(cmd)
