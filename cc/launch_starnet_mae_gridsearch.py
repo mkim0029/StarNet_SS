@@ -12,7 +12,7 @@ grid_params = {'jt': [1],
                'lpop':['adamw', 'LARS'],
                'lplr': [0.1, 0.01],
                'lplrf': [10., 100.],
-               'lpdo': [0.8, 0.9]
+               'lpdo': [0.8, 0.9],
               'lpbs': [256, 512]}
 
 # Create a list of all possible parameter combinations
