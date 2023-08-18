@@ -147,6 +147,9 @@ def parseArguments():
     parser.add_argument("-lpel", "--num_enc_layers", 
                         help="The number of layers in the encoder to finetune (0, 1, or 2).", 
                         type=int, default=2)
+    parser.add_argument("-lpls", "--label_smoothing", 
+                        help="Label smoothing for cross-entropy loss.", 
+                        type=float, default=0.0)
     
     parser.add_argument("-ssz", "--spectrum_size", 
                         help="Number of flux values in spectrum.", 
@@ -256,7 +259,8 @@ elif user_input=='o':
                                        'weight_decay': args.lp_weight_decay,
                                        'total_batch_iters': args.lp_total_batch_iters,
                                        'dropout': args.lp_dropout,
-                                       'num_enc_layers': args.num_enc_layers}
+                                       'num_enc_layers': args.num_enc_layers,
+                                       'label_smoothing': args.label_smoothing}
     
     config['MAE ARCHITECTURE'] = {'spectrum_size': args.spectrum_size,
                               'patch_size': args.patch_size,
