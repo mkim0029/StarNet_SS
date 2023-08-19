@@ -50,9 +50,6 @@ for i in range(111,145):
     tgt_preds = (tgt_preds - label_means) / label_stds 
     tgt_tgts = (tgt_tgts - label_means) / label_stds 
     
-    print(src_preds)
-    print(src_tgts)
-    
     # Calculate MSE
     src_mse = np.mean((src_preds-src_tgts)**2)
     tgt_mse = np.mean((tgt_preds-tgt_tgts)**2)
