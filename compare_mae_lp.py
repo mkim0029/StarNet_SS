@@ -67,8 +67,8 @@ for i in range(111,154):
                                feature_loss])
     print('Model %i: %s' % (i, config['Notes']['comment']))
     print('\tBatch iters: %i' % (losses['lp_batch_iters'][-1]))
-    print('\tSrc Labels: %0.0f, %0.3f, %0.2f, %0.4f' % (src_mae[0], src_mae[0], 
-                                       src_mae[0], src_mae[0]))
+    print('\tSrc Labels: %0.0f, %0.3f, %0.2f, %0.4f' % (src_mae[0], src_mae[1], 
+                                       src_mae[2], src_mae[3]))
     print('\tTgt Labels: %0.0f, %0.3f, %0.2f, %0.4f' % (tgt_mae[0], tgt_mae[1], 
                                        tgt_mae[2], tgt_mae[3]))
     print('\tFeatures: %0.5f' % (feature_loss))
