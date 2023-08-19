@@ -145,14 +145,14 @@ def mae_iter(model, optimizer, lr_scheduler, #loss_scaler,
     # Zero the gradients
     optimizer.zero_grad()
 
-    #'''
+    '''
     mr1 = 0.1
     mr2 = 0.95
     if mode=='train':
         mask_ratio = (mr2 - mr1) * torch.rand(1) + mr1
     else:
         mask_ratio = mr1
-    #'''
+    '''
     #mask_ratio = mask_ratio.item()
     
     # Compute predictions and losses
