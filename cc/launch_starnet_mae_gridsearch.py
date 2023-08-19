@@ -2,18 +2,18 @@ import os
 import itertools
 
 # Starting number for jobs
-start_model_num = 113
+start_model_num = 145
 
 # Different parameters to try out 
 # (check the launch script to see what these keys correspond to)
-grid_params = {'jt': [1],
+grid_params = {'jt': [2],
                'upa': ['True'],
                'pan':['starnet_mae_111'],
-               'lpop':['adamw', 'LARS'],
-               'lplr': [0.1, 0.01],
-               'lplrf': [10., 100.],
-               'lpdo': [0.8, 0.9],
-              'lpbs': [256, 512]}
+               'lpop':['adamw'],
+               'lplr': [0.1], #0.01
+               'lplrf': [100., 1000], #10
+               'lpdo': [0.9, 0.95], # 0.8
+              'lpbs': [512, 1024]} # 256
 
 # Create a list of all possible parameter combinations
 keys, values = zip(*grid_params.items())
