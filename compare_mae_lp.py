@@ -71,9 +71,9 @@ for i in range(111,154):
                                        src_mae[0], src_mae[0]))
     print('\tTgt Labels: %0.0f, %0.3f, %0.2f, %0.4f' % (tgt_mae[0], tgt_mae[1], 
                                        tgt_mae[2], tgt_mae[3]))
-    print('\tFeatures: %0.5f\n' % (feature_loss))
-    print('\Src MAE: %0.5f\n' % (src_mae_norm))
-    print('\Tgt MAE: %0.5f\n' % (tgt_mae_norm))
+    print('\tFeatures: %0.5f' % (feature_loss))
+    print('\tSrc MAE: %0.5f' % (src_mae_norm))
+    print('\tTgt MAE: %0.5f\n' % (tgt_mae_norm))
 
 models_compare = np.array(models_compare)
 print('Model %i performed the best at predicting source Teff labels with %0.5f' % (models_compare[np.nanargmin(models_compare[:,1]),0], models_compare[np.nanargmin(models_compare[:,1]),1]))
