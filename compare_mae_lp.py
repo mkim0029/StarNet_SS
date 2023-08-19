@@ -3,6 +3,11 @@ import os
 import numpy as np
 import configparser
 import glob
+# Directory of training script
+cur_dir = os.path.dirname(__file__)
+import sys
+sys.path.append(os.path.join(cur_dir,'mae_utils'))
+from training_utils import str2bool, parseArguments, LARS
 
 # Directories
 cur_dir = os.path.dirname(__file__)
