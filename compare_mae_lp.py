@@ -17,7 +17,7 @@ results_dir = os.path.join(cur_dir, 'results/')
 
 
 models_compare = []
-for i in range(111,145):
+for i in range(111,154):
     model_name = 'starnet_mae_%i'%i
 
     model_filename = os.path.join(model_dir,model_name+'_lp.pth.tar')
@@ -56,14 +56,14 @@ for i in range(111,145):
     tgt_tgts = (tgt_tgts - label_means) / label_stds 
     
     # Calculate normalized MAE
-    src_mse = np.mean(np.abs(src_preds-src_tgts))
-    tgt_mse = np.mean(np.abs(tgt_preds-tgt_tgts))
+    src_mae_norm = np.mean(np.abs(src_preds-src_tgts))
+    tgt_mae_norm = np.mean(np.abs(tgt_preds-tgt_tgts))
     
     models_compare.append([i, src_mae[0], tgt_mae[0], 
                                src_mae[1], tgt_mae[1], 
                                src_mae[2], tgt_mae[2], 
                                src_mae[3], tgt_mae[3],
-                           src_mse, tgt_mse,
+                           src_mae_norm, tgt_mae_norm,
                                feature_loss])
     print('Model %i: %s' % (i, config['Notes']['comment']))
     print('\tBatch iters: %i' % (losses['lp_batch_iters'][-1]))
@@ -72,8 +72,8 @@ for i in range(111,145):
     print('\tTgt Labels: %0.0f, %0.3f, %0.2f, %0.4f' % (tgt_mae[0], tgt_mae[1], 
                                        tgt_mae[2], tgt_mae[3]))
     print('\tFeatures: %0.5f\n' % (feature_loss))
-    print('\Src MAE: %0.5f\n' % (src_mae))
-    print('\Tgt MAE: %0.5f\n' % (tgt_mae))
+    print('\Src MAE: %0.5f\n' % (src_mae_norm))
+    print('\Tgt MAE: %0.5f\n' % (tgt_mae_norm))
 
 models_compare = np.array(models_compare)
 print('Model %i performed the best at predicting source Teff labels with %0.5f' % (models_compare[np.nanargmin(models_compare[:,1]),0], models_compare[np.nanargmin(models_compare[:,1]),1]))
