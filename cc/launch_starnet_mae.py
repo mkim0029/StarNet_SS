@@ -128,10 +128,10 @@ def parseArguments():
                         type=str, default='adamw')
     parser.add_argument("-lpbs", "--lp_batch_size", 
                         help="Training batchsize for linear probe.", 
-                        type=int, default=512)
+                        type=int, default=1024)
     parser.add_argument("-lplr", "--lp_lr", 
                         help="Initial learning rate for linear probe.", 
-                        type=float, default=0.01)
+                        type=float, default=0.1)
     parser.add_argument("-lplrf", "--lp_final_lr_factor", 
                         help="Final lr will be lr/lrf for linear probe.", 
                         type=float, default=100.0)
@@ -143,7 +143,7 @@ def parseArguments():
                         type=int, default=20000)
     parser.add_argument("-lpdo", "--lp_dropout", 
                         help="Dropout ratio for linear probe.", 
-                        type=float, default=0.9)
+                        type=float, default=0.95)
     parser.add_argument("-lpel", "--num_enc_layers", 
                         help="The number of layers in the encoder to finetune (0, 1, or 2).", 
                         type=int, default=2)
