@@ -17,7 +17,7 @@ results_dir = os.path.join(cur_dir, 'results/')
 
 
 models_compare = []
-for i in range(111,154):
+for i in range(148,162):
     model_name = 'starnet_mae_%i'%i
 
     model_filename = os.path.join(model_dir,model_name+'_lp.pth.tar')
@@ -26,21 +26,22 @@ for i in range(111,154):
         # Try loading model
         checkpoint = torch.load(model_filename, map_location=lambda storage, loc: storage)
         losses = dict(checkpoint['losses'])
+        
+        # Model configuration
+        config = configparser.ConfigParser()
+        config.read(config_dir+model_name+'.ini')
+
+        # Load predictions
+        src_preds = np.load(os.path.join(results_dir, '%s_source_preds.npy'%model_name))
+        src_tgts = np.load(os.path.join(results_dir, '%s_source_tgts.npy'%model_name))
+        src_feats = np.load(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name))
+        tgt_preds = np.load(os.path.join(results_dir, '%s_target_preds.npy'%model_name))
+        tgt_tgts = np.load(os.path.join(results_dir, '%s_target_tgts.npy'%model_name))
+        tgt_feats = np.load(os.path.join(results_dir, '%s_target_feature_maps.npy'%model_name))
+        
     except:
         print('Model %i broken. Rerunning' %i)
         continue
-            
-    # Model configuration
-    config = configparser.ConfigParser()
-    config.read(config_dir+model_name+'.ini')
-        
-    # Load predictions
-    src_preds = np.load(os.path.join(results_dir, '%s_source_preds.npy'%model_name))
-    src_tgts = np.load(os.path.join(results_dir, '%s_source_tgts.npy'%model_name))
-    src_feats = np.load(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name))
-    tgt_preds = np.load(os.path.join(results_dir, '%s_target_preds.npy'%model_name))
-    tgt_tgts = np.load(os.path.join(results_dir, '%s_target_tgts.npy'%model_name))
-    tgt_feats = np.load(os.path.join(results_dir, '%s_target_feature_maps.npy'%model_name))
     
     # Calculate MAE
     src_mae = np.mean(np.abs(src_preds-src_tgts), axis=0)
