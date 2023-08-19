@@ -50,9 +50,9 @@ for i in range(111,145):
     tgt_preds = (tgt_preds - label_means) / label_stds 
     tgt_tgts = (tgt_tgts - label_means) / label_stds 
     
-    # Calculate MSE
-    src_mse = np.mean((src_preds-src_tgts)**2)
-    tgt_mse = np.mean((tgt_preds-tgt_tgts)**2)
+    # Calculate normalized MAE
+    src_mse = np.mean(np.abs(src_preds-src_tgts))
+    tgt_mse = np.mean(np.abs(tgt_preds-tgt_tgts))
     
     models_compare.append([i, src_mae[0], tgt_mae[0], 
                                src_mae[1], tgt_mae[1], 
@@ -89,8 +89,8 @@ models_compare[np.nanargmin(models_compare[:,8]),8]))
 print('Model %i performed the best at matching the features with %0.5f' % (models_compare[np.nanargmin(models_compare[:,11]),0],
 models_compare[np.nanargmin(models_compare[:,11]),11]))
 
-print('Model %i performed the best on source domain with an MSE of %0.5f' % (models_compare[np.nanargmin(models_compare[:,9]),0],
+print('Model %i performed the best on source domain with an MAE of %0.5f' % (models_compare[np.nanargmin(models_compare[:,9]),0],
 models_compare[np.nanargmin(models_compare[:,9]),9]))
 
-print('Model %i performed the best on target domain with an MSE of %0.5f' % (models_compare[np.nanargmin(models_compare[:,10]),0],
+print('Model %i performed the best on target domain with an MAE of %0.5f' % (models_compare[np.nanargmin(models_compare[:,10]),0],
 models_compare[np.nanargmin(models_compare[:,10]),10]))
