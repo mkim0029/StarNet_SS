@@ -117,7 +117,7 @@ source_train_dataset = SpectraDataset(source_data_file,
 source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
                                                       batch_size=batch_size, 
                                                       shuffle=True, 
-                                                      num_workers=3,
+                                                      num_workers=5,
                                                       pin_memory=True)
 
 source_val_dataset = SpectraDataset(source_data_file, 
@@ -131,7 +131,7 @@ source_val_dataset = SpectraDataset(source_data_file,
 source_val_dataloader = torch.utils.data.DataLoader(source_val_dataset, 
                                                     batch_size=batch_size, 
                                                     shuffle=False, 
-                                                    num_workers=3,
+                                                    num_workers=5,
                                                     pin_memory=True)
 
 target_train_dataset = SpectraDataset(target_data_file, 
@@ -146,7 +146,7 @@ target_train_dataset = SpectraDataset(target_data_file,
 target_train_dataloader = torch.utils.data.DataLoader(target_train_dataset,
                                                       batch_size=batch_size, 
                                                       shuffle=True, 
-                                                      num_workers=3,
+                                                      num_workers=5,
                                                       pin_memory=True)
 
 target_val_dataset = SpectraDataset(target_data_file, 
@@ -161,7 +161,7 @@ target_val_dataset = SpectraDataset(target_data_file,
 target_val_dataloader = torch.utils.data.DataLoader(target_val_dataset, 
                                                     batch_size=batch_size, 
                                                     shuffle=False, 
-                                                    num_workers=3,
+                                                    num_workers=5,
                                                     pin_memory=True)
 
 print('The source training set consists of %i spectra.' % (len(source_train_dataset)))

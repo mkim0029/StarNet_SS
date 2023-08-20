@@ -22,7 +22,7 @@ def parseArguments():
                         type=float, default=10)
     parser.add_argument("-n", "--num_runs", 
                         help="Number of jobs to run for this simulation.", 
-                        type=int, default=1)
+                        type=int, default=2)
     parser.add_argument("-acc", "--account", 
                         help="Compute Canada account to run jobs under.", 
                         type=str, default='def-sfabbro')
@@ -103,7 +103,7 @@ def parseArguments():
                         type=str, default='None')
     parser.add_argument("-bs", "--batch_size", 
                         help="Training batchsize.", 
-                        type=int, default=64)
+                        type=int, default=128)
     parser.add_argument("-lr", "--lr", 
                         help="Initial learning rate.", 
                         type=float, default=0.001)
@@ -115,13 +115,13 @@ def parseArguments():
                         type=float, default=10.0)
     parser.add_argument("-wd", "--weight_decay", 
                         help="Weight decay for AdamW optimizer.", 
-                        type=float, default=0.05)
+                        type=float, default=0.01)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
                         type=int, default=100000)
     parser.add_argument("-mr", "--mask_ratio", 
                         help="Fraction of patches that will be masked during training.", 
-                        type=float, default=0.75)
+                        type=float, default=0.5)
     
     parser.add_argument("-lpop", "--lp_optimizer", 
                         help="Training optimizer for linear probe.", 

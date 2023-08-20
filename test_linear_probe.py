@@ -201,4 +201,4 @@ print('Finished.')
 tsne_comparison(feature_maps_src, feature_maps_tgt, 
                 label1=r'$\mathbf{\mathcal{Z}_{synth}}$',
                 label2=r'$\mathbf{\mathcal{Z}_{obs}}$',
-               savename=os.path.join(figs_dir, '%s_feature_tsne.png'%model_name))
+               savename=os.path.join(figs_dir, '%s_lp_feature_tsne.png'%model_name))
