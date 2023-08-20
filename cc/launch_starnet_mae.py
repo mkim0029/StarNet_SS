@@ -134,7 +134,7 @@ def parseArguments():
                         type=float, default=0.1)
     parser.add_argument("-lplrf", "--lp_final_lr_factor", 
                         help="Final lr will be lr/lrf for linear probe.", 
-                        type=float, default=100.0)
+                        type=float, default=500.0)
     parser.add_argument("-lpwd", "--lp_weight_decay", 
                         help="Weight decay for AdamW optimizer for linear probe.", 
                         type=float, default=0.0)
