@@ -42,7 +42,7 @@ for i in range(148,162):
         tgt_feats = np.load(os.path.join(results_dir, '%s_target_feature_maps.npy'%model_name))
         
     except:
-        print('Model %i broken hasn\'t finished training (%i/%i)' % (i, losses['lp_batch_iters'][-1], config['LINEAR PROBE TRAINING']['total_batch_iters']))
+        print('Model %i broken hasn\'t finished training (%i/%s)' % (i, losses['lp_batch_iters'][-1], config['LINEAR PROBE TRAINING']['total_batch_iters']))
         incomplete_models.append(i)
         continue
     
