@@ -459,6 +459,83 @@ def plot_resid(label_keys, tgt_stellar_labels, pred_stellar_labels,
     
     plt.show()
     
+def plot_resid_hexbin(label_keys, tgt_stellar_labels, pred_stellar_labels,
+                      x_label='', y_lims=[1000, 1, 1, 1, 10], 
+                      gridsize=(100,50), max_counts=30, cmap='ocean_r', n_std=3,
+                      savename=None):
+    
+    fig, axes = plt.subplots(len(label_keys), 1, 
+                             figsize=(10, len(label_keys)*2.5))
+
+    #if not hasattr(axes, 'len'):
+    #    axes = [axes]
+
+    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=1)
+    for i, ax in enumerate(axes):
+        label_key = label_keys[i]
+        # Make label pretty
+        if label_key=='teff':
+            label_key = 'T$_{\mathrm{eff}}$ [K]'
+        if label_key=='feh':
+            label_key = '[Fe/H]'
+        if label_key=='logg':
+            label_key = '$\log{g}$'
+        if label_key=='alpha':
+            label_key = r'[$\alpha$/H]'
+        if label_key=='vrad':
+            label_key = r'$v_{\mathrm{rad}}$ [km/s]'
+            
+        # Calculate residual
+        diff = pred_stellar_labels[:,i] - tgt_stellar_labels[:,i]
+        
+        # Plot
+        tgts = tgt_stellar_labels[:,i]
+        x_range = [np.max([np.min(tgts), np.median(tgts)-n_std*np.std(tgts)]),
+                   np.min([np.max(tgts), np.median(tgts)+n_std*np.std(tgts)])]
+        
+        hex_data = ax.hexbin(tgt_stellar_labels[:,i], diff, gridsize=gridsize, cmap=cmap,
+                                 extent=(x_range[0], x_range[1], -y_lims[i], y_lims[i]), 
+                                 bins=None, vmax=max_counts) 
+        
+        # Annotate with statistics
+        if 'eff' in label_key:
+            ax.annotate('$\widetilde{m}$=%0.0f $s$=%0.0f'% (np.mean(diff), np.std(diff)),
+                        (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                        bbox=bbox_props)
+        elif 'rad' in label_key:
+            ax.annotate('$\widetilde{m}$=%0.1f $s$=%0.1f'% (np.mean(diff), np.std(diff)),
+                        (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                        bbox=bbox_props)
+        else:
+            ax.annotate('$\widetilde{m}$=%0.2f $s$=%0.2f'% (np.mean(diff), np.std(diff)),
+                    (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                    bbox=bbox_props)
+            
+        # Axis params
+        ax.set_xlabel('%s %s' % (x_label, label_key), size=4*len(label_keys))
+        ax.set_ylabel(r'$\Delta$ %s' % label_key, size=4*len(label_keys))
+        ax.axhline(0, linewidth=2, c='black', linestyle='--')
+        ax.set_xlim(x_range[0], x_range[1])
+        ax.set_ylim(-y_lims[i], y_lims[i])
+        ax.set_yticks([-y_lims[i], -0.5*y_lims[i], 0, 0.5*y_lims[i], y_lims[i]])
+
+        ax.tick_params(labelsize=2.8*len(label_keys))
+        ax.grid()
+    
+    # Colorbar
+    fig.subplots_adjust(right=0.8, hspace=0.5)
+    cbar_ax = fig.add_axes([0.81, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(hex_data, cax=cbar_ax)
+    cbar.set_label('Counts', size=4*len(label_keys))
+    
+    #plt.tight_layout()
+        
+    if savename is not None:
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
+                    bbox_inches='tight', pad_inches=0.05)
+    
+    plt.show()
+    
 def compare_veracity(isochrone_fn, teff1, logg1, feh1, teff2, logg2, feh2,
                      label1, label2,
                      feh_min, feh_max, feh_lines=[-1., -0.5, 0.], 
@@ -725,6 +802,83 @@ def tsne_comparison(data1, data2,
                 marker='o', c='firebrick', alpha=0.2)
     plt.legend(fontsize=14, frameon=True, fancybox=True, markerscale=2.)
     
+    if savename is not None:
+        plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
+                    bbox_inches='tight', pad_inches=0.05)
+    
+    plt.show()
+    
+def plot_resid_hexbin(label_keys, tgt_stellar_labels, pred_stellar_labels,
+                      x_label='', y_lims=[1000, 1, 1, 1, 10], 
+                      gridsize=(100,50), max_counts=30, cmap='ocean_r', n_std=3,
+                      savename=None):
+    
+    fig, axes = plt.subplots(len(label_keys), 1, 
+                             figsize=(10, len(label_keys)*2.5))
+
+    #if not hasattr(axes, 'len'):
+    #    axes = [axes]
+
+    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=1)
+    for i, ax in enumerate(axes):
+        label_key = label_keys[i]
+        # Make label pretty
+        if label_key=='teff':
+            label_key = 'T$_{\mathrm{eff}}$ [K]'
+        if label_key=='feh':
+            label_key = '[Fe/H]'
+        if label_key=='logg':
+            label_key = '$\log{g}$'
+        if label_key=='alpha':
+            label_key = r'[$\alpha$/H]'
+        if label_key=='vrad':
+            label_key = r'$v_{\mathrm{rad}}$ [km/s]'
+            
+        # Calculate residual
+        diff = pred_stellar_labels[:,i] - tgt_stellar_labels[:,i]
+        
+        # Plot
+        tgts = tgt_stellar_labels[:,i]
+        x_range = [np.max([np.min(tgts), np.median(tgts)-n_std*np.std(tgts)]),
+                   np.min([np.max(tgts), np.median(tgts)+n_std*np.std(tgts)])]
+        
+        hex_data = ax.hexbin(tgt_stellar_labels[:,i], diff, gridsize=gridsize, cmap=cmap,
+                                 extent=(x_range[0], x_range[1], -y_lims[i], y_lims[i]), 
+                                 bins=None, vmax=max_counts) 
+        
+        # Annotate with statistics
+        if 'eff' in label_key:
+            ax.annotate('$\widetilde{m}$=%0.0f $s$=%0.0f'% (np.mean(diff), np.std(diff)),
+                        (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                        bbox=bbox_props)
+        elif 'rad' in label_key:
+            ax.annotate('$\widetilde{m}$=%0.1f $s$=%0.1f'% (np.mean(diff), np.std(diff)),
+                        (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                        bbox=bbox_props)
+        else:
+            ax.annotate('$\widetilde{m}$=%0.2f $s$=%0.2f'% (np.mean(diff), np.std(diff)),
+                    (0.75,0.8), size=4*len(label_keys), xycoords='axes fraction', 
+                    bbox=bbox_props)
+            
+        # Axis params
+        ax.set_xlabel('%s %s' % (x_label, label_key), size=4*len(label_keys))
+        ax.set_ylabel(r'$\Delta$ %s' % label_key, size=4*len(label_keys))
+        ax.axhline(0, linewidth=2, c='black', linestyle='--')
+        ax.set_xlim(x_range[0], x_range[1])
+        ax.set_ylim(-y_lims[i], y_lims[i])
+        ax.set_yticks([-y_lims[i], -0.5*y_lims[i], 0, 0.5*y_lims[i], y_lims[i]])
+
+        ax.tick_params(labelsize=2.8*len(label_keys))
+        ax.grid()
+    
+    # Colorbar
+    fig.subplots_adjust(right=0.8, hspace=0.5)
+    cbar_ax = fig.add_axes([0.81, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(hex_data, cax=cbar_ax)
+    cbar.set_label('Counts', size=4*len(label_keys))
+    
+    #plt.tight_layout()
+        
     if savename is not None:
         plt.savefig(savename, facecolor='white', transparent=False, dpi=100,
                     bbox_inches='tight', pad_inches=0.05)
