@@ -231,9 +231,10 @@ compare_veracity(isochrone_fn, teff1=survey_labels[0,:,0],
                 label1='APOGEE', label2='StarNet-MAE',
                 feh_min=-1, feh_max=0.5, 
                 feh_lines=[-1., -0.5, 0.0, 0.5], 
-                savename=os.path.join(figs_dir, '%s_target_val_veracity_ensemble.png'%model_name))
+                savename=os.path.join(figs_dir, '%s_target_veracity_ensemble.png'%model_name))
 
 plot_resid_hexbin(unimodal_keys, survey_labels[0], pred_avg_labels,
                   y_lims = [1000, 1.2, 1.5, 0.8], x_label='APOGEE',
-                 gridsize=(100,15), max_counts=200, cmap='ocean_r', 
-                  n_std=3)
+                 gridsize=(100,15), max_counts=100, cmap='ocean_r', 
+                  n_std=3, 
+                savename=os.path.join(figs_dir, '%s_target_resid_density.png'%model_name))
