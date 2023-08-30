@@ -1,7 +1,6 @@
 import torch
-from torch import nn
+from torch import nn, inf
 import torch.nn.functional as F
-from torch._six import inf
 
 import argparse
 import numpy as np
