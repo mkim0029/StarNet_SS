@@ -236,6 +236,9 @@ class ConvNeXtV2(nn.Module):
         return x * self.input_std + self.input_mean
             
     def forward_features(self, x, norm_in=True):
+        
+        if len(x.size())<3:
+            x = x.unsqueeze(1)
                 
         if norm_in:
             # Normalize input data
@@ -515,7 +518,9 @@ class FCMAE1D(nn.Module):
         return x * self.input_std + self.input_mean
     
     def forward_encoder(self, imgs, mask_ratio, norm_in=True):
-                
+        if len(imgs.size())<3:
+            imgs = imgs.unsqueeze(1)
+            
         if norm_in:
             imgs = self.normalize_inputs(imgs)
             
