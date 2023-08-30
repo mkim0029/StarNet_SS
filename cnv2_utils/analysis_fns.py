@@ -168,7 +168,7 @@ def plot_spec_resid_density(wave_grid, x_orig, x_mask, x_pred,
     ax0.set_xlabel(r'Wavelength (\AA)',fontsize=30)
     ax0.set_ylim(ylim)
 
-    sns.kdeplot(data=x_resid.flatten(), vertical=True, 
+    sns.kdeplot(y=x_resid.flatten(), 
                 ax=ax1, lw=3, c=a.cmap(cmax/4.), gridsize=dist_bins)
     ax1.set_xticks([])
     ax1.tick_params(axis='x',          
@@ -643,7 +643,7 @@ def mae_predict(model, dataloader, device, mask_ratio=0.75):
                                                           norm_in=True)
             
             # Construct full-sized mask
-            mask = mask.unsqueeze(-1).repeat(1, 1, model.patch_embed.patch_size[1])
+            mask = mask.unsqueeze(-1).repeat(1, 1, model.patch_size)
             mask = mask.reshape(mask.shape[0], -1).data.cpu().numpy()    
             
             # Collect original spectrum
@@ -685,28 +685,25 @@ def encoder_predict(model, dataloader, device, mask_ratio=0.):
             
             batch = batch_to_device(batch, device)
             
-            latent, mask, ids_restore = model.forward_encoder(batch['spectrum'],  
-                                                              mask_ratio=mask_ratio, 
-                                                              norm_in=True)
+            latent, mask = model.forward_encoder(batch['spectrum'],  
+                                                 mask_ratio=mask_ratio, 
+                                                 norm_in=True)
             # Save results
             latents.append(latent.data.cpu().numpy())
         latents = np.concatenate(latents)
         
     return latents
 
-def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
+def predict_labels(model, dataloader, device, batchsize=16):
     
     print('Predicting on %i batches...' % (len(dataloader)))
     try:
         model.eval_mode()
     except AttributeError:
         model.module.eval_mode()
-        
 
-    tgt_mm_labels = []
-    tgt_um_labels = []
-    pred_mm_labels = []
-    pred_um_labels = []
+    tgt_labels = []
+    pred_labels = []
     feature_maps = []
     with torch.no_grad():
         # Loop through spectra in dataset
@@ -715,49 +712,28 @@ def predict_labels(model, dataloader, device, batchsize=16, take_mode=False):
             batch = batch_to_device(batch, device)
 
             # Collect target data
-            if model.num_mm_labels>0:
-                tgt_mm_labels.append(batch['multimodal labels'].data.cpu().numpy())
-            if model.num_um_labels>0:
-                tgt_um_labels.append(batch['unimodal labels'].data.cpu().numpy())
+            tgt_labels.append(batch['stellar labels'].data.cpu().numpy())
 
             # Perform forward propagation
             try:
                 # Compute prediction on source batch
-                model_outputs = model.forward_labels(batch['spectrum'], 
+                model_outputs = model(batch['spectrum'], 
                                                    norm_in=True, denorm_out=True, 
                                                    return_feats=True)
             except AttributeError:
-                model_outputs = model.module.forward_labels(batch['spectrum'], 
+                model_outputs = model.module(batch['spectrum'], 
                                                    norm_in=True, denorm_out=True, 
                                                    return_feats=True)
 
                 
             # Save predictions
             feature_maps.append(model_outputs['feature map'].data.cpu().numpy())
-            if model.num_mm_labels>0:
-                pred_mm_labels.append(model_outputs['multimodal labels'].data.cpu().numpy())
-            if model.num_um_labels>0:
-                pred_um_labels.append(model_outputs['unimodal labels'].data.cpu().numpy())
+            pred_labels.append(model_outputs['predicted labels'].data.cpu().numpy())
 
         feature_maps = np.vstack(feature_maps)
-        if model.num_mm_labels>0:
-            tgt_mm_labels = np.vstack(tgt_mm_labels)
-            pred_mm_labels = np.vstack(pred_mm_labels)
-        if model.num_um_labels>0:
-            tgt_um_labels = np.vstack(tgt_um_labels)
-            pred_um_labels = np.vstack(pred_um_labels)
-        if (model.num_mm_labels>0)&(model.num_um_labels>0):
-            tgt_labels = np.hstack((tgt_mm_labels, tgt_um_labels))
-            pred_labels = np.hstack((pred_mm_labels, pred_um_labels))
-        elif model.num_mm_labels>0:
-            tgt_labels = tgt_mm_labels
-            pred_labels = pred_mm_labels
-        elif model.num_um_labels>0:
-            tgt_labels = tgt_um_labels
-            pred_labels = pred_um_labels
-        label_keys = model.multimodal_keys + model.unimodal_keys
         
-    return label_keys, tgt_labels, pred_labels, feature_maps
+        
+    return model.label_keys, np.concatenate(tgt_labels), np.concatenate(pred_labels), feature_maps
 
 def run_tsne(data_a, data_b, perplex):
 
