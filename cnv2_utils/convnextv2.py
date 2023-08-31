@@ -256,7 +256,7 @@ class ConvNeXtV2(nn.Module):
         x = self.forward_features(x, norm_in=norm_in)
         
         if return_feats:
-            return_dict['feature map'] = latent
+            return_dict['feature map'] = x
             
         if self.dropout>0:
             x = self.head_dropout(x)
