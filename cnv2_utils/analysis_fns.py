@@ -15,9 +15,6 @@ import seaborn as sns
 
 from string import ascii_lowercase
 
-from scipy import stats
-import scipy.optimize as opt
-
 from sklearn.manifold import TSNE
 
 plt.rcParams.update({
