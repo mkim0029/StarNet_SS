@@ -648,7 +648,7 @@ def mae_predict(model, dataloader, device, mask_ratio=0.75):
             # Fill in missing prediction pixels with original flux values
             spec_pred = spec_pred.reshape(spec_pred.shape[0], -1)
             spec_pred = model.denormalize_inputs(spec_pred).data.cpu().numpy()
-            spec_pred[mask==0] = orig_spec[mask==0]
+            spec_pred[mask==1] = orig_spec[mask==1]
             
             # Representation of masked spectra
             input_spec = np.copy(orig_spec)
