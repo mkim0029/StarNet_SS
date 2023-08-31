@@ -517,7 +517,7 @@ class FCMAE1D(nn.Module):
         '''Undo the normalization to put spectra back in the original scale.'''
         return x * self.input_std + self.input_mean
     
-    def forward_encoder(self, imgs, mask_ratio, norm_in=True):
+    def forward_encoder(self, imgs, mask_ratio, norm_in=False):
         if len(imgs.size())<3:
             imgs = imgs.unsqueeze(1)
             
@@ -567,7 +567,11 @@ class FCMAE1D(nn.Module):
 
     def forward(self, imgs, mask_ratio=0.6, norm_in=True):
         imgs = imgs.unsqueeze(1)
-        latent, mask = self.forward_encoder(imgs, mask_ratio, norm_in=norm_in)
+        
+        if norm_in:
+            imgs = self.normalize_inputs(imgs)
+        
+        latent, mask = self.forward_encoder(imgs, mask_ratio)
         pred = self.forward_decoder(latent, mask)
         loss = self.forward_loss(imgs, pred, mask)
         return loss, pred, mask, latent
