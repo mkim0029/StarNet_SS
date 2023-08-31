@@ -122,7 +122,7 @@ plot_progress(losses,
               y_lims=[(0,3), (0,0.15)],lp=True,
              savename=os.path.join(figs_dir, '%s_lp_train_progress.png'%model_name))
 
-plot_val_MAEs(losses, multimodal_keys+unimodal_keys, 
+plot_val_MAEs(losses, label_keys, 
               y_lims=[(0.,600.), (0.,0.6), (0.,1.0), (0.,.3), (0,0.2)],
              savename=os.path.join(figs_dir, '%s_val_progress.png'%model_name))
 

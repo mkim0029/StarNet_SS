@@ -560,14 +560,14 @@ class FCMAE1D(nn.Module):
 
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
+        # Mask=1 were masked inputs, these are the pixels we want to evaluate the loss on
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
-        
         #loss = torch.mean((pred - target) ** 2)
         return loss
 
     def forward(self, imgs, mask_ratio=0.6, norm_in=True):
         imgs = imgs.unsqueeze(1)
-        
+
         if norm_in:
             imgs = self.normalize_inputs(imgs)
         

@@ -637,6 +637,7 @@ def mae_predict(model, dataloader, device, mask_ratio=0.75):
             loss, spec_pred, mask, latent = model.forward(batch['spectrum'], 
                                                           mask_ratio=mask_ratio, 
                                                           norm_in=True)
+            spec_pred = torch.einsum('ncl->nlc', spec_pred)
             
             # Construct full-sized mask
             mask = mask.unsqueeze(-1).repeat(1, 1, model.patch_size)
@@ -648,11 +649,12 @@ def mae_predict(model, dataloader, device, mask_ratio=0.75):
             # Fill in missing prediction pixels with original flux values
             spec_pred = spec_pred.reshape(spec_pred.shape[0], -1)
             spec_pred = model.denormalize_inputs(spec_pred).data.cpu().numpy()
-            #spec_pred[mask==1] = orig_spec[mask==1]
+            
+            spec_pred[mask==0] = orig_spec[mask==0]
             
             # Representation of masked spectra
             input_spec = np.copy(orig_spec)
-            #input_spec[mask==1] = np.nan
+            input_spec[mask==0] = np.nan
             
             # Save results
             pred_spectra.append(spec_pred)
