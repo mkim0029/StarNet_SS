@@ -4,7 +4,7 @@ import numpy as np
 
 # Starting number for jobs
 start_model_num = 4
-num_models = 10
+num_models = 50
 
 # [Min, max, num_decimals]
 uniform_params = {'lr': [0.0001, 0.01, 4],
