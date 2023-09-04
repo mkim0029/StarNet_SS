@@ -139,10 +139,9 @@ def plot_spec_resid_density(wave_grid, x_orig, x_mask, x_pred,
                             scatter_label=r'$s$ \ ',
                             cmap="ocean_r", savename=None):
     
-    x_pred[~np.isnan(x_mask)] = np.nan
     
     # Calculate residulal
-    x_resid = (x_orig-x_pred)
+    x_resid = (x_mask-x_pred)
     
     bias = np.nanmean(x_resid)
     scatter = np.nanstd(x_resid)
@@ -696,9 +695,9 @@ def predict_labels(model, dataloader, device, batchsize=16):
     
     print('Predicting on %i batches...' % (len(dataloader)))
     try:
-        model.eval_mode()
+        model.eval()
     except AttributeError:
-        model.module.eval_mode()
+        model.module.eval()
 
     tgt_labels = []
     pred_labels = []
