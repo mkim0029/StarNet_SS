@@ -15,7 +15,6 @@ for i in range(4, 55):
 
     model_filenames =  glob.glob(os.path.join(model_dir,model_name+'_*.pth.tar'))
     model_filenames = [fn for fn in model_filenames if 'lp' not in fn]
-            continue
     if len(model_filenames)==0:
         model_filenames =  [os.path.join(model_dir,model_name+'.pth.tar')]
 
