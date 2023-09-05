@@ -18,6 +18,8 @@ for i in range(4, 55):
         model_filenames =  [os.path.join(model_dir,model_name+'.pth.tar')]
 
     for model_filename in model_filenames:
+        if 'lp' in model_filename:
+            continue
         
         try:
             # Try loading model
