@@ -43,6 +43,7 @@ for i in range(4, 55):
         config.read(config_dir+model_name+'.ini')
 
         losses = dict(checkpoint['losses'])
+        print(losses.keys())
         train_loss = np.mean(losses['train_loss'][-3:])
         val_loss = np.mean(losses['val_loss'][-3:])
         feat_loss = np.mean(losses['val_feats'][-3:])
