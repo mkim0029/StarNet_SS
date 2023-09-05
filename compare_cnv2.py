@@ -10,7 +10,7 @@ model_dir = os.path.join(cur_dir, 'models/')
 config_dir = os.path.join(cur_dir, 'configs/')
 
 models_compare = []
-for i in range(4, 55):
+for i in range(3, 55):
     model_name = 'starnet_cnv2_%i'%i
 
     model_filenames =  glob.glob(os.path.join(model_dir,model_name+'_*.pth.tar'))
