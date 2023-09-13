@@ -3,8 +3,8 @@ import itertools
 import numpy as np
 
 # Starting number for jobs
-start_model_num = 245
-num_models = 50
+start_model_num = 296
+num_models = 30
 
 # [Min, max, num_decimals]
 '''uniform_params = {'lr': [0.0001, 0.01, 4],
@@ -17,7 +17,7 @@ num_models = 50
               'lpti': [10000, 40000, -3],
               'lpdo': [0, 0.3, 2]}'''
 
-uniform_params = {'lplr': [0.00001, 0.001, 4],
+uniform_params = {'lplr': [0.0005, 0.01, 4],
                   'lplrf': [100, 10000, -2],
                   'lpti': [20000, 50000, -3],
                   'lpdo': [0, 0.1, 2],
