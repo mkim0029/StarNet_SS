@@ -66,7 +66,7 @@ def parseArguments():
                         type=str, default='True')
     parser.add_argument("-mnf", "--max_noise_factor", 
                         help="Maximum fraction of continuum to set random noise to.", 
-                        type=float, default=0.1)
+                        type=float, default=0.05)
     parser.add_argument("-ssm", "--std_min", 
                         help="Threshold for standard deviation of a channel in the spectrum (if lower, that channel will not be used).", 
                         type=float, default=0.00001)
@@ -103,16 +103,16 @@ def parseArguments():
                         type=int, default=128)
     parser.add_argument("-lr", "--lr", 
                         help="Initial learning rate.", 
-                        type=float, default=0.001)
+                        type=float, default=0.003)
     parser.add_argument("-lrf", "--final_lr_factor", 
                         help="Final lr will be lr/lrf.", 
-                        type=float, default=1000.0)
+                        type=float, default=1500.0)
     parser.add_argument("-tlw", "--target_loss_weight", 
                         help="Loss weighting placed on samples from target domain.", 
                         type=float, default=10.0)
     parser.add_argument("-wd", "--weight_decay", 
                         help="Weight decay for AdamW optimizer.", 
-                        type=float, default=0.01)
+                        type=float, default=0.005)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
                         type=int, default=30000)
@@ -128,19 +128,19 @@ def parseArguments():
                         type=int, default=128)
     parser.add_argument("-lplr", "--lp_lr", 
                         help="Initial learning rate for linear probe.", 
-                        type=float, default=0.001)
+                        type=float, default=0.0006)
     parser.add_argument("-lplrf", "--lp_final_lr_factor", 
                         help="Final lr will be lr/lrf for linear probe.", 
-                        type=float, default=5000.0)
+                        type=float, default=2000.0)
     parser.add_argument("-lpwd", "--lp_weight_decay", 
                         help="Weight decay for AdamW optimizer for linear probe.", 
                         type=float, default=0.0)
     parser.add_argument("-lpti", "--lp_total_batch_iters", 
                         help="Total number of batch iterations for training for linear probe.", 
-                        type=int, default=20000)
+                        type=int, default=40000)
     parser.add_argument("-lpdo", "--lp_dropout", 
                         help="Dropout ratio for linear probe.", 
-                        type=float, default=0.1)
+                        type=float, default=0.05)
     parser.add_argument("-lpel", "--num_enc_layers", 
                         help="The number of layers in the encoder to finetune (0, 1, or 2).", 
                         type=int, default=2)

@@ -3,8 +3,8 @@ import itertools
 import numpy as np
 
 # Starting number for jobs
-start_model_num = 55
-num_models = 30
+start_model_num = 85
+num_models = 50
 
 # [Min, max, num_decimals]
 '''uniform_params = {'lr': [0.0001, 0.01, 4],
@@ -17,17 +17,16 @@ num_models = 30
               'lpti': [10000, 40000, -3],
               'lpdo': [0, 0.3, 2]}'''
 
-uniform_params = {'lr': [0.001, 0.005, 3],
-               'lrf': [500, 1500, -2],
-              'ti': [20000, 40000, -3],
-              'mr': [0.4, 0.7, 2],
-              'wd': [0.001, 0.01, 3],
-              'lplr': [0.00001, 0.001, 4],
-              'lplrf': [100, 2000, -2],
-              'lpti': [20000, 40000, -3],
-              'lpdo': [0, 0.1, 2],
-                 'tlw': [0.1, 10, 1],
-                 'mnf': [0.01,0.2,2]}
+uniform_params = {'lplr': [0.00001, 0.001, 4],
+                  'lplrf': [100, 10000, -2],
+                  'lpti': [20000, 50000, -3],
+                  'lpdo': [0, 0.1, 2],
+                  'lpbs': [128, 512, 0],
+                  'mnf': [0.01,0.15,2]}
+
+static_params = {'n': 1,
+                 'ti': 3,
+                 'lr': 0.0000001}
 
 # Create a list of all possible parameter combinations
 #keys, values = zip(*grid_params.items())
@@ -44,6 +43,8 @@ for model_num in range(start_model_num, start_model_num+num_models):
         val = np.round(val, vals[2])
         if vals[2]<=0:
             val=int(val)
+        param_cmd += '-%s %s '% (k, val)
+    for k, val in static_params.items():
         param_cmd += '-%s %s '% (k, val)
     
     launch_cmd = ('python launch_starnet_cnv2.py starnet_cnv2_%i' % (model_num) +
