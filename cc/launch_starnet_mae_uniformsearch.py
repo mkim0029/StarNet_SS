@@ -19,7 +19,8 @@ uniform_params = {'bs':[128, 512,0],
                   'lpdo': [0, 0.15, 2],
                   'mnf': [0.01,0.15,2]}
 
-static_params = {'n': 1}
+static_params = {'n': 1,
+                'acc': 'def-bazalova'}
 
 # Create a list of all possible parameter combinations
 #keys, values = zip(*grid_params.items())
