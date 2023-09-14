@@ -194,8 +194,8 @@ data_dir = os.path.join(cur_dir, '../data')
 model_dir = os.path.join(cur_dir, '../models/')
 training_script1 = os.path.join(cur_dir, '../train_mae.py')
 testing_script1 = os.path.join(cur_dir, '../test_mae.py')
-training_script2 = os.path.join(cur_dir, '../train_linear_probe2.py')
-testing_script2 = os.path.join(cur_dir, '../test_linear_probe.py')
+training_script2 = os.path.join(cur_dir, '../train_linear_probe3.py')
+testing_script2 = os.path.join(cur_dir, '../test_linear_probe3.py')
 
 # Read command line arguments
 args = parseArguments()

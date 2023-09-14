@@ -3,30 +3,23 @@ import itertools
 import numpy as np
 
 # Starting number for jobs
-start_model_num = 296
-num_models = 30
+start_model_num = 327
+num_models = 50
 
 # [Min, max, num_decimals]
-'''uniform_params = {'lr': [0.0001, 0.01, 4],
-               'lrf': [100, 10000, -2],
-              'ti': [10000, 60000, -3],
-              'mr': [0.2, 0.8, 2],
-              'wd': [0.001, 0.05, 3],
-              'lplr': [0.0001, 0.01, 4],
-              'lplrf': [100, 10000, -2],
-              'lpti': [10000, 40000, -3],
-              'lpdo': [0, 0.3, 2]}'''
-
-uniform_params = {'lplr': [0.0005, 0.01, 4],
+uniform_params = {'bs':[128, 512,0],
+                  'lr': [0.0001, 0.01, 4],
+                  'lrf': [100, 10000, -2],
+                  'mr': [0.2, 0.8, 2],
+                  'tlw': [0.5,10,1],
+                  'wd': [0.001, 0.02, 3],
+                  'lplr': [0.0001, 0.01, 4],
                   'lplrf': [100, 10000, -2],
-                  'lpti': [20000, 50000, -3],
-                  'lpdo': [0, 0.1, 2],
                   'lpbs': [128, 512, 0],
+                  'lpdo': [0, 0.15, 2],
                   'mnf': [0.01,0.15,2]}
 
-static_params = {'n': 1,
-                 'ti': 3,
-                 'lr': 0.0000001}
+static_params = {'n': 1}
 
 # Create a list of all possible parameter combinations
 #keys, values = zip(*grid_params.items())
