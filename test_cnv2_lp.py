@@ -143,10 +143,12 @@ np.save(os.path.join(results_dir, '%s_source_tgts.npy'%model_name), tgt_labels)
 np.save(os.path.join(results_dir, '%s_source_feature_maps.npy'%model_name), feature_maps_src)
 
 # Save a plot
-plot_resid_violinplot(label_keys, tgt_labels, pred_labels,
-                      y_lims=[1000, 1.2, 1.5, 0.8], 
-                      savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
-
+try:
+    plot_resid_violinplot(label_keys, tgt_labels, pred_labels,
+                          y_lims=[1000, 1.2, 1.5, 0.8], 
+                          savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
+except:
+    continue
 (label_keys, tgt_labels, pred_labels, feature_maps_tgt) = predict_labels(model,
                                                                 target_val_dataloader, 
                                                                 device=device)
