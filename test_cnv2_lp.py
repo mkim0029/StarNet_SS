@@ -44,7 +44,12 @@ source_data_file = os.path.join(data_dir, config['DATA']['source_data_file'])
 target_data_file = os.path.join(data_dir, config['DATA']['target_data_file'])
 wave_grid_file = os.path.join(data_dir, config['DATA']['wave_grid_file'])
 label_keys = eval(config['DATA']['label_keys'])
+source_val_survey = config['DATA']['source_val_survey']
+if source_val_survey.lower()=='none':
+    source_val_survey = None
 target_val_survey = config['DATA']['target_val_survey']
+if target_val_survey.lower()=='none':
+    target_val_survey = None
 continuum_normalize = str2bool(config['DATA']['continuum_normalize'])
 divide_by_median = str2bool(config['DATA']['divide_by_median'])
 batch_size = int(config['MAE TRAINING']['batch_size'])
@@ -63,6 +68,7 @@ model, losses, _ = load_model_state(model, model_filename)
 source_train_dataset = SpectraDataset(source_data_file, 
                                       dataset='train', 
                                       label_keys=label_keys,
+                                      label_survey=source_val_survey,
                                       continuum_normalize=continuum_normalize,
                                       divide_by_median=divide_by_median)
 
@@ -75,6 +81,7 @@ source_train_dataloader = torch.utils.data.DataLoader(source_train_dataset,
 source_val_dataset = SpectraDataset(source_data_file, 
                                       dataset='val', 
                                       label_keys=label_keys,
+                                      label_survey=source_val_survey,
                                       continuum_normalize=continuum_normalize,
                                       divide_by_median=divide_by_median)
 

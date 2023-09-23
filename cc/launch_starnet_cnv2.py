@@ -49,6 +49,9 @@ def parseArguments():
     parser.add_argument("-lk", "--label_keys",  type=str, nargs='+',
                         help="Dataset keys for labels in data file.", 
                         default="['teff', 'feh', 'logg', 'alpha']") 
+    parser.add_argument("-svs", "--source_val_survey", 
+                        help="Survey for source domain label data.", 
+                        type=str, default='None') 
     parser.add_argument("-tvs", "--target_val_survey", 
                         help="Survey for target domain label data.", 
                         type=str, default='APOGEE') 
