@@ -148,7 +148,7 @@ try:
                           y_lims=[1000, 1.2, 1.5, 0.8], 
                           savename=os.path.join(figs_dir, '%s_source_val_results.png'%model_name))
 except:
-    continue
+    pass
 (label_keys, tgt_labels, pred_labels, feature_maps_tgt) = predict_labels(model,
                                                                 target_val_dataloader, 
                                                                 device=device)
