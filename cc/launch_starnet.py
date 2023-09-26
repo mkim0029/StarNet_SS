@@ -52,19 +52,19 @@ def parseArguments():
     
     parser.add_argument("-bs", "--batch_size", 
                         help="Training batchsize.", 
-                        type=int, default=16)
+                        type=int, default=256)
     parser.add_argument("-lr", "--lr", 
                         help="Initial learning rate.", 
-                        type=float, default=0.001)
+                        type=float, default=0.003)
     parser.add_argument("-lrf", "--final_lr_factor", 
                         help="Final lr will be lr/lrf.", 
                         type=float, default=1000.0)
     parser.add_argument("-wd", "--weight_decay", 
                         help="Weight decay for AdamW optimizer.", 
-                        type=float, default=0.0)
+                        type=float, default=0.0001)
     parser.add_argument("-ti", "--total_batch_iters", 
                         help="Total number of batch iterations for training.", 
-                        type=int, default=10000)
+                        type=int, default=60000)
 
     parser.add_argument("-ssz", "--spectrum_size", 
                         help="Number of flux values in spectrum.", 
